@@ -8,14 +8,19 @@ Usage:
     python -m phantom                          # Default: check Slack, do work
     python -m phantom "Go to google.com..."    # Run a specific task
 """
-import sys
 import os
+import sys
 
 # Ensure project root is on path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from orchestrator import run_agent, ensure_settings_file, login_github_cli, setup_logging
 from agents_config import AGENTS
+from orchestrator import (
+    ensure_settings_file,
+    login_github_cli,
+    run_agent,
+    setup_logging,
+)
 
 
 def main():
@@ -30,8 +35,11 @@ def main():
 
     # Ensure persistent browser is running before starting the agent
     from phantom.browser_server import ensure_running
+
     if not ensure_running():
-        logger.warning("⚠️  Browser server failed to start. Phantom can still start it manually.")
+        logger.warning(
+            "⚠️  Browser server failed to start. Phantom can still start it manually."
+        )
 
     agent = AGENTS["phantom"]
 

@@ -38,10 +38,10 @@ Usage:
 """
 
 import time
-import requests
 from pathlib import Path
 
-from utils.litellm_client import get_headers, api_url, resolve_model
+import requests
+from utils.litellm_client import api_url, get_headers, resolve_model
 
 # Valid sizes for video generation
 VALID_SIZES = ["1280x720", "720x1280"]

@@ -9,7 +9,6 @@ import json
 import subprocess
 from pathlib import Path
 
-
 # Port 6080: direct noVNC (websockify → x11vnc, no password)
 VNC_PORT = 6080
 
@@ -55,12 +54,14 @@ def request_human_help(reason: str, page_url: str = ""):
     ]
     if page_url:
         parts.append(f"*Page:* {page_url}")
-    parts.extend([
-        f"",
-        f"🖥️ *Open browser:* {vnc_url}",
-        f"",
-        f"Please complete the action in the browser and reply here when done.",
-    ])
+    parts.extend(
+        [
+            f"",
+            f"🖥️ *Open browser:* {vnc_url}",
+            f"",
+            f"Please complete the action in the browser and reply here when done.",
+        ]
+    )
     subprocess.run(
         ["python", "slack_interface.py", "say", "\n".join(parts)],
         capture_output=True,

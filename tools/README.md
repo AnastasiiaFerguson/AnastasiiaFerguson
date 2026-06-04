@@ -6,11 +6,15 @@ Reusable utility tools for the Phantom browser automation agent. Each tool works
 
 | Tool | Purpose | CLI Usage |
 |------|---------|-----------|
+| `pdx.py` | Discover and run connected Pipedream app actions | `pdx list`, `pdx tools`, `pdx run ...` |
+| `cron.py` | Schedule recurring agent prompts (see `agent-docs/CRON.md`) | `python tools/cron.py add ...`, `list`, `trigger` |
 | `health_check.py` | System diagnostics | `python tools/health_check.py` |
 | `log_analyzer.py` | Parse Claude Code JSONL logs | `python tools/log_analyzer.py <logfile>` |
 | `stealth_audit.py` | Browser stealth verification | `python tools/stealth_audit.py` |
 | `session_manager.py` | Save/restore browser sessions | `python tools/session_manager.py list` |
 | `message_sanitizer.py` | Strip LLM artifacts from text | `python tools/message_sanitizer.py "text"` |
+
+`pdx.py` is installed as `/usr/local/bin/pdx` by `install.sh`; see `agent-docs/PIPEDREAM_CONNECT.md`.
 
 ## Tool Design Principles
 

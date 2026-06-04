@@ -12,8 +12,8 @@ Environment variables (set automatically from settings.json):
 You can also override by setting these env vars before importing.
 """
 
-import os
 import json
+import os
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ def _load_settings() -> dict:
             return {
                 "api_key": env.get("ANTHROPIC_AUTH_TOKEN", ""),
                 "base_url": env.get("ANTHROPIC_BASE_URL", ""),
-                "default_model": env.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
+                "default_model": env.get("ANTHROPIC_MODEL", "claude-opus-4-8"),
                 "source": str(path),
             }
     return {}
@@ -58,8 +58,10 @@ def get_config() -> dict:
 
     return {
         "api_key": os.environ.get("LITELLM_API_KEY", _config_cache.get("api_key", "")),
-        "base_url": os.environ.get("LITELLM_BASE_URL", _config_cache.get("base_url", "")),
-        "default_model": _config_cache.get("default_model", "claude-sonnet-4-5-20250929"),
+        "base_url": os.environ.get(
+            "LITELLM_BASE_URL", _config_cache.get("base_url", "")
+        ),
+        "default_model": _config_cache.get("default_model", "claude-opus-4-8"),
         "source": _config_cache.get("source", "env"),
     }
 
@@ -89,23 +91,28 @@ def api_url(path: str) -> str:
 
 MODELS = {
     # Chat / Text models
-    "claude-opus": "claude-opus-4-6",
-    "claude-sonnet": "claude-sonnet-4-5-20250929",
+    "claude-opus": "claude-opus-4-8",  # Default: latest Opus
+    "claude-opus-4-8": "claude-opus-4-8",  # Explicit alias for the latest
+    "claude-opus-4-7": "claude-opus-4-7",  # Previous generation (kept for migration)
+    "claude-opus-4-6": "claude-opus-4-6",  # Previous generation (still fully supported)
+    "claude-sonnet": "claude-sonnet-4-6",  # Was: claude-sonnet-4-5-20250929 (retired)
+    "claude-sonnet-4-6": "claude-sonnet-4-6",  # Explicit alias
     "claude-haiku": "claude-haiku-4-5-20251001",
-    "gpt-5": "openai/openai/gpt-5.2",
+    "gpt-5": "openai/openai/gpt-5.5",  # Was: gpt-5.2 (retired); 5.5 is current
+    "gpt-5.5": "openai/openai/gpt-5.5",  # Explicit alias
+    "gpt-5.4": "openai/openai/gpt-5.4",  # Explicit alias (still available)
     "gemini-pro": "google/gemini/gemini-3-pro-preview",
     "ninja-fast": "ninja-cline-fast",
     "ninja-standard": "ninja-cline-standard",
     "ninja-complex": "ninja-cline-complex",
-
     # Image models
-    "gpt-image": "openai/openai/gpt-image-1.5",
+    "gpt-image": "openai/openai/gpt-image-2",  # Default (new): state-of-the-art, up to 2K, 16 reference images
+    "gpt-image-2": "openai/openai/gpt-image-2",  # Explicit alias for the latest
+    "gpt-image-1.5": "openai/openai/gpt-image-1.5",  # Legacy — kept for backward compatibility
     "gemini-image": "google/gemini/gemini-3-pro-image-preview",
-
     # Video models
     "sora": "openai/openai/sora-2",
     "sora-pro": "openai/openai/sora-2-pro",
-
     # Embedding models
     "embed-small": "openai/openai/text-embedding-3-small",
     "embed-large": "openai/openai/text-embedding-3-large",

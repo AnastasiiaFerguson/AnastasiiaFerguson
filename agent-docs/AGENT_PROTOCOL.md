@@ -179,7 +179,7 @@ python slack_interface.py say "**[Work Type] Update**
 📎 GitHub: [link to PR/issue/commit]
 📎 Slack: File uploaded in thread below
 
-@[relevant_agent] — ready for review" 
+@[relevant_agent] — ready for review"
 ```
 
 #### Reporting Blockers
@@ -237,7 +237,7 @@ python slack_interface.py say "📊 **Cycle Summary**
    ```bash
    # Upload file to Slack (uses agent impersonation)
    python slack_interface.py upload path/to/file.png --title "Design Mockup v2"
-   
+
    # Upload to a specific thread
    python slack_interface.py upload report.pdf --title "Test Report" -t <thread_ts>
    ```
@@ -360,7 +360,7 @@ python slack_interface.py say "👤 **Stakeholder Input Needed**
 
 We need your input on:
 - **Topic**: [Description]
-- **Options**: 
+- **Options**:
   1. [Option A]
   2. [Option B]
 - **Recommendation**: [Agent's suggestion]
@@ -441,12 +441,13 @@ All agents have access to AI models through the NinjaTech LiteLLM gateway. A rea
 |----------|---------|
 | [MODELS.md](MODELS.md) | Complete model catalog — aliases, capabilities, parameters, sizes |
 | [LITELLM_GUIDE.md](LITELLM_GUIDE.md) | Usage guide — code examples, error handling, building custom utilities |
+| [PIPEDREAM_CONNECT.md](PIPEDREAM_CONNECT.md) | Connected app integrations — OAuth dashboard, `tools/pdx.py`, and `pdx` CLI |
 
 ### Quick Import Reference
 
 ```python
 from utils.chat import chat, chat_json, chat_stream     # Text generation
-from utils.images import generate_image, generate_images  # Image generation
+from utils.images import generate_image, generate_images, edit_image  # Image generation + multi-reference editing
 from utils.video import generate_video                     # Video generation
 from utils.embeddings import embed, cosine_similarity      # Embeddings
 from utils.litellm_client import resolve_model, get_config # Config & model aliases
@@ -460,12 +461,12 @@ from tavily_client import Tavily                           # Web research
 | Complex reasoning | `claude-opus` | Highest quality |
 | General tasks | `claude-sonnet` | Best balance of quality/speed |
 | Quick responses | `claude-haiku` | Fastest |
-| Image generation | `gemini-image` | ✅ Most reliable |
+| Image generation | `gpt-image` | ✅ Default — gpt-image-2, state-of-the-art |
 | Video generation | `sora` | ~90s generation time |
 | Embeddings | `embed-small` | 1536 dimensions |
 | Web research | **Tavily** | 5 tools: search, extract, crawl, map, research |
 
-⚠️ **Important:** `gemini-image` is the recommended default for image generation. `gpt-image` may experience intermittent gateway errors — use it only as a fallback.
+> **Image generation:** Always use `gpt-image` (resolves to `gpt-image-2`) as the default. It supports text rendering, multi-reference compositing, and flexible sizes up to 2K. `gemini-image` is available as an alternative provider but ignores the `size` parameter and returns a non-standard JPEG aspect ratio.
 
 ---
 

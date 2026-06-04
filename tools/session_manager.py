@@ -62,25 +62,29 @@ def _read_cookies_from_db(db_path: Path) -> list:
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT host_key, name, path, expires_utc, is_secure, is_httponly,
                    samesite, creation_utc, last_access_utc
             FROM cookies
             ORDER BY host_key, name
-        """)
+        """
+        )
 
         for row in cursor.fetchall():
-            cookies.append({
-                "host": row[0],
-                "name": row[1],
-                "path": row[2],
-                "expires_utc": row[3],
-                "secure": bool(row[4]),
-                "httponly": bool(row[5]),
-                "samesite": row[6],
-                "creation_utc": row[7],
-                "last_access_utc": row[8],
-            })
+            cookies.append(
+                {
+                    "host": row[0],
+                    "name": row[1],
+                    "path": row[2],
+                    "expires_utc": row[3],
+                    "secure": bool(row[4]),
+                    "httponly": bool(row[5]),
+                    "samesite": row[6],
+                    "creation_utc": row[7],
+                    "last_access_utc": row[8],
+                }
+            )
 
         conn.close()
     except sqlite3.Error as e:
@@ -154,7 +158,9 @@ def restore_session(name: str) -> dict:
     """
     session_path = _get_session_path(name)
     if not session_path.exists():
-        return {"error": f"Session '{name}' not found. Use 'list' to see available sessions."}
+        return {
+            "error": f"Session '{name}' not found. Use 'list' to see available sessions."
+        }
 
     try:
         with open(session_path) as f:
@@ -232,14 +238,16 @@ def list_sessions() -> dict:
         try:
             with open(f) as fh:
                 data = json.load(fh)
-            sessions.append({
-                "name": data.get("name", f.stem),
-                "description": data.get("description", ""),
-                "created": data.get("created", "unknown"),
-                "cookie_count": data.get("cookie_count", 0),
-                "domain_count": len(data.get("domains", {})),
-                "file": str(f),
-            })
+            sessions.append(
+                {
+                    "name": data.get("name", f.stem),
+                    "description": data.get("description", ""),
+                    "created": data.get("created", "unknown"),
+                    "cookie_count": data.get("cookie_count", 0),
+                    "domain_count": len(data.get("domains", {})),
+                    "file": str(f),
+                }
+            )
         except (json.JSONDecodeError, IOError):
             sessions.append({"name": f.stem, "error": "Cannot read session file"})
 
@@ -315,10 +323,15 @@ Examples:
   python tools/session_manager.py delete old_session  Delete a session
         """,
     )
-    parser.add_argument("command", choices=["list", "save", "restore", "delete", "info"],
-                        help="Command to execute")
+    parser.add_argument(
+        "command",
+        choices=["list", "save", "restore", "delete", "info"],
+        help="Command to execute",
+    )
     parser.add_argument("name", nargs="?", help="Session name")
-    parser.add_argument("--description", "-d", default="", help="Session description (for save)")
+    parser.add_argument(
+        "--description", "-d", default="", help="Session description (for save)"
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     args = parser.parse_args()
@@ -338,7 +351,9 @@ Examples:
             print(json.dumps(result, indent=2))
         else:
             icon = "✅" if result.get("status") == "ok" else "❌"
-            print(f"\n  {icon} {result.get('message', result.get('error', 'Unknown error'))}\n")
+            print(
+                f"\n  {icon} {result.get('message', result.get('error', 'Unknown error'))}\n"
+            )
 
     elif args.command == "restore":
         if not args.name:
@@ -348,7 +363,9 @@ Examples:
             print(json.dumps(result, indent=2))
         else:
             icon = "✅" if result.get("status") == "ok" else "❌"
-            print(f"\n  {icon} {result.get('message', result.get('error', 'Unknown error'))}\n")
+            print(
+                f"\n  {icon} {result.get('message', result.get('error', 'Unknown error'))}\n"
+            )
 
     elif args.command == "delete":
         if not args.name:
@@ -358,7 +375,9 @@ Examples:
             print(json.dumps(result, indent=2))
         else:
             icon = "✅" if result.get("status") == "ok" else "❌"
-            print(f"\n  {icon} {result.get('message', result.get('error', 'Unknown error'))}\n")
+            print(
+                f"\n  {icon} {result.get('message', result.get('error', 'Unknown error'))}\n"
+            )
 
     elif args.command == "info":
         if not args.name:

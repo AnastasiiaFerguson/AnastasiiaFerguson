@@ -27,10 +27,14 @@ Usage:
     report = tavily.research("AI trends in 2026")
 """
 
-import requests, json, sys, os
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+import json
+import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import requests
 
 # ---------------------------------------------------------------------------
 # Configuration — reads from settings.json via litellm_client
@@ -41,7 +45,7 @@ _this_dir = Path(__file__).resolve().parent
 if str(_this_dir) not in sys.path:
     sys.path.insert(0, str(_this_dir))
 
-from utils.litellm_client import get_config, get_headers, api_url
+from utils.litellm_client import api_url, get_config, get_headers
 
 
 @dataclass
@@ -52,6 +56,7 @@ class TavilyConfig:
         TavilyConfig(base_url="...", api_key="...")
     Otherwise everything is read from settings.json automatically.
     """
+
     base_url: str = ""
     api_key: str = ""
     server_id: str = ""
@@ -67,11 +72,15 @@ class TavilyConfig:
                 self.api_key = cfg.get("api_key", "")
 
         if not self.base_url:
-            raise ValueError("Base URL not found in settings.json or TavilyConfig(base_url=...)")
+            raise ValueError(
+                "Base URL not found in settings.json or TavilyConfig(base_url=...)"
+            )
         self.base_url = self.base_url.rstrip("/")
 
         if not self.api_key:
-            raise ValueError("API key not found in settings.json or TavilyConfig(api_key=...)")
+            raise ValueError(
+                "API key not found in settings.json or TavilyConfig(api_key=...)"
+            )
 
         if not self.server_id:
             self._discover_server_id()
@@ -79,14 +88,18 @@ class TavilyConfig:
     def _discover_server_id(self):
         """Auto-discover server_id and tool_prefix from the gateway."""
         try:
-            r = requests.get(f"{self.base_url}/v1/mcp/server",
-                             headers={"Authorization": f"Bearer {self.api_key}"})
+            r = requests.get(
+                f"{self.base_url}/v1/mcp/server",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
             if r.status_code == 200:
                 servers = r.json()
                 for s in servers:
                     if "tavily" in s.get("server_name", "").lower():
                         self.server_id = s["server_id"]
-                        self.tool_prefix = s.get("alias", "") + "-" if s.get("alias") else ""
+                        self.tool_prefix = (
+                            s.get("alias", "") + "-" if s.get("alias") else ""
+                        )
                         return
             raise ValueError("Could not auto-discover Tavily server_id from gateway")
         except requests.RequestException as e:
@@ -109,10 +122,15 @@ class _MCPSession:
 
     def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
         prefixed_name = f"{self.cfg.tool_prefix}{name}"
-        r = requests.post(f"{self.cfg.base_url}/mcp-rest/tools/call",
-                          headers=self._headers,
-                          json={"name": prefixed_name, "arguments": arguments,
-                                "server_id": self.cfg.server_id})
+        r = requests.post(
+            f"{self.cfg.base_url}/mcp-rest/tools/call",
+            headers=self._headers,
+            json={
+                "name": prefixed_name,
+                "arguments": arguments,
+                "server_id": self.cfg.server_id,
+            },
+        )
 
         if r.status_code != 200:
             raise Exception(f"HTTP {r.status_code}: {r.text[:500]}")
@@ -124,7 +142,11 @@ class _MCPSession:
         else:
             if data.get("isError"):
                 content = data.get("content", [])
-                err_msg = content[0].get("text", "Unknown error") if content else "Unknown error"
+                err_msg = (
+                    content[0].get("text", "Unknown error")
+                    if content
+                    else "Unknown error"
+                )
                 raise Exception(f"Tool error: {err_msg}")
             content = data.get("content", [])
 
@@ -138,8 +160,7 @@ class _MCPSession:
         return data
 
     def list_tools(self) -> List[Dict]:
-        r = requests.get(f"{self.cfg.base_url}/v1/mcp/tools",
-                         headers=self._headers)
+        r = requests.get(f"{self.cfg.base_url}/v1/mcp/tools", headers=self._headers)
         if r.status_code != 200:
             return []
         all_tools = r.json().get("tools", [])
@@ -169,20 +190,24 @@ class Tavily:
     # Search
     # ------------------------------------------------------------------
 
-    def search(self, query: str, *,
-               max_results: int = 10,
-               search_depth: str = "basic",
-               topic: str = "general",
-               time_range: Optional[str] = None,
-               include_images: bool = False,
-               include_image_descriptions: bool = False,
-               include_raw_content: bool = False,
-               include_domains: Optional[List[str]] = None,
-               exclude_domains: Optional[List[str]] = None,
-               country: Optional[str] = None,
-               start_date: Optional[str] = None,
-               end_date: Optional[str] = None,
-               include_favicon: bool = False) -> Any:
+    def search(
+        self,
+        query: str,
+        *,
+        max_results: int = 10,
+        search_depth: str = "basic",
+        topic: str = "general",
+        time_range: Optional[str] = None,
+        include_images: bool = False,
+        include_image_descriptions: bool = False,
+        include_raw_content: bool = False,
+        include_domains: Optional[List[str]] = None,
+        exclude_domains: Optional[List[str]] = None,
+        country: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        include_favicon: bool = False,
+    ) -> Any:
         """Search the web using Tavily.
 
         Args:
@@ -204,30 +229,44 @@ class Tavily:
         Returns:
             Dict with keys: query, answer, images, results, response_time.
         """
-        args = {"query": query, "max_results": max_results,
-                "search_depth": search_depth, "topic": topic,
-                "include_images": include_images,
-                "include_image_descriptions": include_image_descriptions,
-                "include_raw_content": include_raw_content,
-                "include_favicon": include_favicon}
-        if time_range: args["time_range"] = time_range
-        if include_domains: args["include_domains"] = include_domains
-        if exclude_domains: args["exclude_domains"] = exclude_domains
-        if country: args["country"] = country
-        if start_date: args["start_date"] = start_date
-        if end_date: args["end_date"] = end_date
+        args = {
+            "query": query,
+            "max_results": max_results,
+            "search_depth": search_depth,
+            "topic": topic,
+            "include_images": include_images,
+            "include_image_descriptions": include_image_descriptions,
+            "include_raw_content": include_raw_content,
+            "include_favicon": include_favicon,
+        }
+        if time_range:
+            args["time_range"] = time_range
+        if include_domains:
+            args["include_domains"] = include_domains
+        if exclude_domains:
+            args["exclude_domains"] = exclude_domains
+        if country:
+            args["country"] = country
+        if start_date:
+            args["start_date"] = start_date
+        if end_date:
+            args["end_date"] = end_date
         return self._call("tavily_search", args)
 
     # ------------------------------------------------------------------
     # Extract
     # ------------------------------------------------------------------
 
-    def extract(self, urls: List[str], *,
-                extract_depth: str = "basic",
-                include_images: bool = False,
-                format: str = "markdown",
-                query: Optional[str] = None,
-                include_favicon: bool = False) -> Any:
+    def extract(
+        self,
+        urls: List[str],
+        *,
+        extract_depth: str = "basic",
+        include_images: bool = False,
+        format: str = "markdown",
+        query: Optional[str] = None,
+        include_favicon: bool = False,
+    ) -> Any:
         """Extract content from URLs.
 
         Args:
@@ -241,27 +280,36 @@ class Tavily:
         Returns:
             Dict with keys: results [{url, raw_content}], failed_results, response_time.
         """
-        args = {"urls": urls, "extract_depth": extract_depth,
-                "include_images": include_images, "format": format,
-                "include_favicon": include_favicon}
-        if query: args["query"] = query
+        args = {
+            "urls": urls,
+            "extract_depth": extract_depth,
+            "include_images": include_images,
+            "format": format,
+            "include_favicon": include_favicon,
+        }
+        if query:
+            args["query"] = query
         return self._call("tavily_extract", args)
 
     # ------------------------------------------------------------------
     # Crawl
     # ------------------------------------------------------------------
 
-    def crawl(self, url: str, *,
-              max_depth: int = 1,
-              max_breadth: int = 20,
-              limit: int = 50,
-              instructions: Optional[str] = None,
-              select_paths: Optional[List[str]] = None,
-              select_domains: Optional[List[str]] = None,
-              allow_external: bool = True,
-              extract_depth: str = "basic",
-              format: str = "markdown",
-              include_favicon: bool = False) -> Any:
+    def crawl(
+        self,
+        url: str,
+        *,
+        max_depth: int = 1,
+        max_breadth: int = 20,
+        limit: int = 50,
+        instructions: Optional[str] = None,
+        select_paths: Optional[List[str]] = None,
+        select_domains: Optional[List[str]] = None,
+        allow_external: bool = True,
+        extract_depth: str = "basic",
+        format: str = "markdown",
+        include_favicon: bool = False,
+    ) -> Any:
         """Crawl a website starting from a URL.
 
         Args:
@@ -280,27 +328,40 @@ class Tavily:
         Returns:
             Dict with keys: base_url, results [{url, raw_content}], response_time.
         """
-        args = {"url": url, "max_depth": max_depth, "max_breadth": max_breadth,
-                "limit": limit, "allow_external": allow_external,
-                "extract_depth": extract_depth, "format": format,
-                "include_favicon": include_favicon}
-        if instructions: args["instructions"] = instructions
-        if select_paths: args["select_paths"] = select_paths
-        if select_domains: args["select_domains"] = select_domains
+        args = {
+            "url": url,
+            "max_depth": max_depth,
+            "max_breadth": max_breadth,
+            "limit": limit,
+            "allow_external": allow_external,
+            "extract_depth": extract_depth,
+            "format": format,
+            "include_favicon": include_favicon,
+        }
+        if instructions:
+            args["instructions"] = instructions
+        if select_paths:
+            args["select_paths"] = select_paths
+        if select_domains:
+            args["select_domains"] = select_domains
         return self._call("tavily_crawl", args)
 
     # ------------------------------------------------------------------
     # Map
     # ------------------------------------------------------------------
 
-    def map(self, url: str, *,
-            max_depth: int = 1,
-            max_breadth: int = 20,
-            limit: int = 50,
-            instructions: Optional[str] = None,
-            select_paths: Optional[List[str]] = None,
-            select_domains: Optional[List[str]] = None,
-            allow_external: bool = True) -> Any:
+    def map(
+        self,
+        url: str,
+        *,
+        max_depth: int = 1,
+        max_breadth: int = 20,
+        limit: int = 50,
+        instructions: Optional[str] = None,
+        select_paths: Optional[List[str]] = None,
+        select_domains: Optional[List[str]] = None,
+        allow_external: bool = True,
+    ) -> Any:
         """Map a website's URL structure.
 
         Args:
@@ -316,19 +377,26 @@ class Tavily:
         Returns:
             Dict with keys: base_url, results (list of URLs), response_time.
         """
-        args = {"url": url, "max_depth": max_depth, "max_breadth": max_breadth,
-                "limit": limit, "allow_external": allow_external}
-        if instructions: args["instructions"] = instructions
-        if select_paths: args["select_paths"] = select_paths
-        if select_domains: args["select_domains"] = select_domains
+        args = {
+            "url": url,
+            "max_depth": max_depth,
+            "max_breadth": max_breadth,
+            "limit": limit,
+            "allow_external": allow_external,
+        }
+        if instructions:
+            args["instructions"] = instructions
+        if select_paths:
+            args["select_paths"] = select_paths
+        if select_domains:
+            args["select_domains"] = select_domains
         return self._call("tavily_map", args)
 
     # ------------------------------------------------------------------
     # Research
     # ------------------------------------------------------------------
 
-    def research(self, input: str, *,
-                 model: str = "auto") -> Any:
+    def research(self, input: str, *, model: str = "auto") -> Any:
         """Perform comprehensive multi-source research.
 
         Note: The research endpoint is async. This method returns the
@@ -346,7 +414,9 @@ class Tavily:
 
 
 if __name__ == "__main__":
-    pp = lambda x: print(json.dumps(x, indent=2)[:500] if isinstance(x, (dict, list)) else str(x)[:500])
+    pp = lambda x: print(
+        json.dumps(x, indent=2)[:500] if isinstance(x, (dict, list)) else str(x)[:500]
+    )
 
     print("=== Tavily MCP Client Tests ===\n")
 
@@ -364,20 +434,20 @@ if __name__ == "__main__":
     tools = tavily.list_tools()
     print(f"   {len(tools)} Tavily tools available")
     for t in tools:
-        tname = t.get('name', '?')
+        tname = t.get("name", "?")
         print(f"   - {tname}")
     print()
 
     print("2. Search: 'latest AI news'...")
     try:
         result = tavily.search("latest AI news", max_results=3)
-        query = result.get('query', '?')
-        rtime = result.get('response_time', '?')
+        query = result.get("query", "?")
+        rtime = result.get("response_time", "?")
         print(f"   Query: {query}")
         print(f"   Response time: {rtime}s")
         for r in result.get("results", [])[:3]:
-            title = r.get('title', 'No title')[:60]
-            url = r.get('url', '')[:60]
+            title = r.get("title", "No title")[:60]
+            url = r.get("url", "")[:60]
             print(f"   - {title}: {url}")
     except Exception as e:
         print(f"   Error: {e}")
@@ -389,7 +459,7 @@ if __name__ == "__main__":
         print(f"   Extracted {len(results)} pages")
         for r in results:
             content = r.get("raw_content", "")
-            url = r.get('url', '?')
+            url = r.get("url", "?")
             print(f"   - {url} ({len(content)} chars)")
     except Exception as e:
         print(f"   Error: {e}")
@@ -398,11 +468,11 @@ if __name__ == "__main__":
     try:
         result = tavily.crawl("https://docs.tavily.com", max_depth=1, limit=3)
         pages = result.get("results", [])
-        base = result.get('base_url', '?')
+        base = result.get("base_url", "?")
         print(f"   Crawled {len(pages)} pages from {base}")
         for r in pages:
             content = r.get("raw_content", "")
-            url = r.get('url', '?')
+            url = r.get("url", "?")
             print(f"   - {url} ({len(content)} chars)")
     except Exception as e:
         print(f"   Error: {e}")

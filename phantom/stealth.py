@@ -267,6 +267,7 @@ def check_stealth(browser) -> dict:
         - languages: list (should be ['en-US', 'en'])
     """
     import json
+
     try:
         raw = browser.evaluate(STEALTH_CHECK_JS)
         result = json.loads(raw)
@@ -311,8 +312,8 @@ def print_stealth_status(result: dict):
 # These use Playwright's mouse/keyboard APIs to simulate realistic human behavior.
 # Use these instead of element.click() and keyboard.type() for anti-detection.
 
-import random
 import math
+import random
 import time as _time
 
 
@@ -329,15 +330,18 @@ def human_move_to(page, x: float, y: float, steps: int = 0):
         steps: Number of intermediate points (0 = auto based on distance).
     """
     # Get current mouse position (default to random starting point if unknown)
-    current = page.evaluate("""() => {
+    current = page.evaluate(
+        """() => {
         return JSON.stringify({
             x: window._phantomMouseX || Math.random() * 400 + 100,
             y: window._phantomMouseY || Math.random() * 300 + 100,
         });
-    }""")
+    }"""
+    )
     import json
+
     pos = json.loads(current)
-    cx, cy = pos['x'], pos['y']
+    cx, cy = pos["x"], pos["y"]
 
     # Calculate distance and auto-determine steps
     dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
@@ -352,8 +356,8 @@ def human_move_to(page, x: float, y: float, steps: int = 0):
     for i in range(1, steps + 1):
         t = i / steps
         # Quadratic Bezier: B(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
-        bx = (1 - t) ** 2 * cx + 2 * (1 - t) * t * mid_x + t ** 2 * x
-        by = (1 - t) ** 2 * cy + 2 * (1 - t) * t * mid_y + t ** 2 * y
+        bx = (1 - t) ** 2 * cx + 2 * (1 - t) * t * mid_x + t**2 * x
+        by = (1 - t) ** 2 * cy + 2 * (1 - t) * t * mid_y + t**2 * y
         # Add tiny jitter
         bx += random.uniform(-1.5, 1.5)
         by += random.uniform(-1.5, 1.5)
@@ -394,8 +398,8 @@ def human_click(page, selector: str, timeout: int = 10000):
             return False
 
         # Target slightly off-center (humans don't click dead center)
-        target_x = box['x'] + box['width'] * random.uniform(0.3, 0.7)
-        target_y = box['y'] + box['height'] * random.uniform(0.3, 0.7)
+        target_x = box["x"] + box["width"] * random.uniform(0.3, 0.7)
+        target_y = box["y"] + box["height"] * random.uniform(0.3, 0.7)
 
         # Move mouse to element
         human_move_to(page, target_x, target_y)
@@ -424,8 +428,12 @@ def sanitize_tweet(text: str) -> str:
     """
     try:
         import sys as _sys
-        _sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parent.parent))
+
+        _sys.path.insert(
+            0, str(__import__("pathlib").Path(__file__).resolve().parent.parent)
+        )
         from message_sanitizer import sanitize as _sanitize
+
         return _sanitize(text)
     except ImportError:
         return text
@@ -449,24 +457,28 @@ def human_type(page, text: str, sanitize: bool = True):
     if sanitize:
         try:
             import sys as _sys
-            _sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parent.parent))
+
+            _sys.path.insert(
+                0, str(__import__("pathlib").Path(__file__).resolve().parent.parent)
+            )
             from message_sanitizer import sanitize as _sanitize
+
             text = _sanitize(text)
         except ImportError:
             pass  # sanitizer not available, use text as-is
 
     for char in text:
-        if char == '\n':
-            page.keyboard.press('Enter')
+        if char == "\n":
+            page.keyboard.press("Enter")
             _time.sleep(random.uniform(0.15, 0.5))
         else:
             page.keyboard.type(char, delay=0)
             # Variable delay based on character type
-            if char in '.!?':
+            if char in ".!?":
                 _time.sleep(random.uniform(0.15, 0.5))
-            elif char == ',':
+            elif char == ",":
                 _time.sleep(random.uniform(0.08, 0.25))
-            elif char == ' ':
+            elif char == " ":
                 _time.sleep(random.uniform(0.04, 0.15))
             else:
                 _time.sleep(random.uniform(0.03, 0.12))
@@ -476,6 +488,7 @@ def main():
     """CLI entry point — check stealth on the running browser."""
     import sys
     from pathlib import Path
+
     # Ensure parent dir is on path for browser_interface import
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from browser_interface import BrowserInterface
@@ -490,7 +503,9 @@ def main():
             print_stealth_status(result)
             browser.stop()
         except ConnectionError:
-            print("  ❌ No browser running. Start with: python phantom/browser_server.py start")
+            print(
+                "  ❌ No browser running. Start with: python phantom/browser_server.py start"
+            )
             sys.exit(1)
     else:
         print(f"Usage: python phantom/stealth.py check")

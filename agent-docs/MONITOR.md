@@ -4,6 +4,28 @@ For EACH message above:
 2. Post it to Slack using the appropriate command shown for each message
 3. Move to the next message
 
+> **Cron items** (`type: cron`) are scheduled jobs, not user messages.
+> Execute the prompt and post the result to Slack — do not ask for
+> confirmation. See [CRON.md](CRON.md).
+
+> **Reminders / scheduled tasks** — if a user asks you to remind them,
+> follow up later, or run something on a schedule (e.g. *"remind me at
+> 9am tomorrow to ship the PR"*, *"every weekday at 5pm summarise the
+> day"*), create a cron job with `python tools/cron.py add` instead of
+> just acknowledging. Then confirm in Slack with the cron id and the
+> next run time. See [CRON.md](CRON.md) for the full CLI and schedule
+> syntax. Quick example for a one-off reminder tomorrow at 09:00 local:
+>
+> ```bash
+> python tools/cron.py add \
+>   --id remind-ship-pr \
+>   --schedule "0 9 * * *" \
+>   --prompt "Remind @user to ship the PR they mentioned yesterday."
+> ```
+>
+> For a one-off, disable the job after it fires (or include "and then
+> disable cron remind-ship-pr" in the prompt itself).
+
 RULES:
 - Respond to ALL messages - don't skip any!
 - Execute slack commands immediately, no confirmation needed
