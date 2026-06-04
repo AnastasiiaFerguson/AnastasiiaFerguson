@@ -13,8 +13,8 @@ import time
 from typing import Optional
 
 from browser_interface import BrowserInterface
-from phantom.config import SCREENSHOTS_DIR
 
+from phantom.config import SCREENSHOTS_DIR
 
 # Store interactive elements from the last observation for self-healing
 _last_elements: list[dict] = []
@@ -229,7 +229,8 @@ def execute_action(browser: BrowserInterface, action: str, params: dict) -> str:
         elif action == "extract_table":
             selector = params.get("selector", "table")
             safe_sel = selector.replace("'", "\\'")
-            table_data = browser.evaluate(f"""
+            table_data = browser.evaluate(
+                f"""
             (() => {{
                 const table = document.querySelector('{safe_sel}');
                 if (!table) return null;
@@ -243,7 +244,8 @@ def execute_action(browser: BrowserInterface, action: str, params: dict) -> str:
                 }}
                 return rows;
             }})()
-            """)
+            """
+            )
             if table_data is None:
                 return f"No table found matching: {selector}"
             # Format as readable text
@@ -256,7 +258,8 @@ def execute_action(browser: BrowserInterface, action: str, params: dict) -> str:
         elif action == "extract_links":
             selector = params.get("selector", "body")
             safe_sel = selector.replace("'", "\\'")
-            links = browser.evaluate(f"""
+            links = browser.evaluate(
+                f"""
             (() => {{
                 const container = document.querySelector('{safe_sel}') || document.body;
                 const anchors = container.querySelectorAll('a[href]');
@@ -265,7 +268,8 @@ def execute_action(browser: BrowserInterface, action: str, params: dict) -> str:
                     href: a.href
                 }}));
             }})()
-            """)
+            """
+            )
             if not links:
                 return f"No links found in: {selector}"
             lines = [f"- [{l['text']}]({l['href']})" for l in links]
@@ -278,7 +282,9 @@ def execute_action(browser: BrowserInterface, action: str, params: dict) -> str:
             if "return " in script and not script.strip().startswith("("):
                 script = f"(() => {{ {script} }})()"
             result_val = browser.evaluate(script)
-            result_str = str(result_val)[:2000] if result_val is not None else "(undefined)"
+            result_str = (
+                str(result_val)[:2000] if result_val is not None else "(undefined)"
+            )
             return f"JS result: {result_str}"
 
         elif action == "get_cookies":
@@ -325,7 +331,8 @@ def _ensure_visible(browser: BrowserInterface, selector: str):
     resolved = _resolve_selector(selector)
     try:
         safe_sel = resolved.replace("'", "\\'")
-        is_offscreen = browser.evaluate(f"""
+        is_offscreen = browser.evaluate(
+            f"""
         (() => {{
             let el = null;
             try {{ el = document.querySelector('{safe_sel}'); }} catch(e) {{}}
@@ -333,7 +340,8 @@ def _ensure_visible(browser: BrowserInterface, selector: str):
             const rect = el.getBoundingClientRect();
             return rect.bottom < 0 || rect.top > window.innerHeight;
         }})()
-        """)
+        """
+        )
         if is_offscreen:
             browser.scroll_to(resolved)
             time.sleep(0.3)
@@ -471,19 +479,34 @@ def _dismiss_overlay(browser: BrowserInterface) -> str:
     # Common dismiss button selectors, ordered by specificity
     dismiss_selectors = [
         # Cookie consent buttons
-        'button[id*="accept"]', 'button[id*="agree"]', 'button[id*="consent"]',
-        'button[class*="accept"]', 'button[class*="agree"]', 'button[class*="consent"]',
-        'text=Accept All', 'text=Accept all', 'text=Accept Cookies',
-        'text=Accept all cookies', 'text=I agree', 'text=Agree',
-        'text=Got it', 'text=OK', 'text=I Accept',
+        'button[id*="accept"]',
+        'button[id*="agree"]',
+        'button[id*="consent"]',
+        'button[class*="accept"]',
+        'button[class*="agree"]',
+        'button[class*="consent"]',
+        "text=Accept All",
+        "text=Accept all",
+        "text=Accept Cookies",
+        "text=Accept all cookies",
+        "text=I agree",
+        "text=Agree",
+        "text=Got it",
+        "text=OK",
+        "text=I Accept",
         # Modal close buttons
-        'button[aria-label="Close"]', 'button[aria-label="close"]',
+        'button[aria-label="Close"]',
+        'button[aria-label="close"]',
         'button[aria-label="Dismiss"]',
-        '[class*="close-button"]', '[class*="close-btn"]',
-        '[class*="modal-close"]', '[class*="popup-close"]',
-        'button.close', '.modal .close',
+        '[class*="close-button"]',
+        '[class*="close-btn"]',
+        '[class*="modal-close"]',
+        '[class*="popup-close"]',
+        "button.close",
+        ".modal .close",
         # Generic X buttons
-        'button:has-text("×")', 'button:has-text("✕")',
+        'button:has-text("×")',
+        'button:has-text("✕")',
         # Escape key as last resort
     ]
 

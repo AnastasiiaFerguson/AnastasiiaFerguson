@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from phantom.config import PhantomConfig, PHANTOM_DIR, SCREENSHOTS_DIR, BROWSER_DATA_DIR
+from phantom.config import BROWSER_DATA_DIR, PHANTOM_DIR, SCREENSHOTS_DIR, PhantomConfig
 
 
 class TestPhantomConfig:
@@ -15,12 +15,12 @@ class TestPhantomConfig:
 
     def test_defaults(self):
         config = PhantomConfig()
-        assert config.model == "claude-sonnet-4-6"
+        assert config.model == "claude-opus-4-8"
         assert config.max_tokens == 4096
         assert config.temperature == 0.0
         assert config.headless is False
-        assert config.viewport_width == 1280
-        assert config.viewport_height == 720
+        assert config.viewport_width == 1600
+        assert config.viewport_height == 900
         assert config.timeout == 30000
         assert config.slow_mo == 0
         assert config.proxy is None
@@ -42,7 +42,7 @@ class TestPhantomConfig:
 
     def test_load_defaults(self):
         config = PhantomConfig.load()
-        assert config.model == "claude-sonnet-4-6"
+        assert config.model == "claude-opus-4-8"
         assert config.max_steps == 30
 
     def test_load_from_json_file(self):

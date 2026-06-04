@@ -53,9 +53,15 @@ SERVICE_PROFILES = {
     "google": {
         "label": "Google (Gmail, YouTube, etc.)",
         "cookie_names": {
-            "SID", "HSID", "SSID", "APISID", "SAPISID",
-            "OSID", "COMPASS",
-            "__Secure-1PSID", "__Secure-3PSID",
+            "SID",
+            "HSID",
+            "SSID",
+            "APISID",
+            "SAPISID",
+            "OSID",
+            "COMPASS",
+            "__Secure-1PSID",
+            "__Secure-3PSID",
         },
         "host_patterns": ["%google.com", "%gmail.com", "%youtube.com"],
         "min_cookies": 3,
@@ -64,7 +70,10 @@ SERVICE_PROFILES = {
     "linkedin": {
         "label": "LinkedIn",
         "cookie_names": {
-            "li_at", "JSESSIONID", "li_mc", "lidc",
+            "li_at",
+            "JSESSIONID",
+            "li_mc",
+            "lidc",
         },
         "host_patterns": ["%linkedin.com"],
         "min_cookies": 1,  # li_at alone is sufficient
@@ -73,7 +82,9 @@ SERVICE_PROFILES = {
     "twitter": {
         "label": "Twitter / X",
         "cookie_names": {
-            "auth_token", "ct0", "twid",
+            "auth_token",
+            "ct0",
+            "twid",
         },
         "host_patterns": ["%twitter.com", "%x.com"],
         "min_cookies": 1,  # auth_token alone is sufficient
@@ -82,7 +93,9 @@ SERVICE_PROFILES = {
     "github": {
         "label": "GitHub",
         "cookie_names": {
-            "user_session", "dotcom_user", "__Host-user_session_same_site",
+            "user_session",
+            "dotcom_user",
+            "__Host-user_session_same_site",
             "logged_in",
         },
         "host_patterns": ["%github.com"],
@@ -92,7 +105,10 @@ SERVICE_PROFILES = {
     "amazon": {
         "label": "Amazon",
         "cookie_names": {
-            "session-id", "session-token", "x-main", "at-main",
+            "session-id",
+            "session-token",
+            "x-main",
+            "at-main",
             "sess-at-main",
         },
         "host_patterns": ["%amazon.com", "%amazon.co%"],
@@ -102,7 +118,10 @@ SERVICE_PROFILES = {
     "facebook": {
         "label": "Facebook / Meta",
         "cookie_names": {
-            "c_user", "xs", "datr", "sb",
+            "c_user",
+            "xs",
+            "datr",
+            "sb",
         },
         "host_patterns": ["%facebook.com"],
         "min_cookies": 2,  # c_user + xs
@@ -124,8 +143,9 @@ def _read_cookies(host_patterns: list[str]) -> list[dict]:
         tmp_path = tmp.name
 
     try:
-        subprocess.run(["cp", str(COOKIES_DB), tmp_path],
-                       check=True, capture_output=True)
+        subprocess.run(
+            ["cp", str(COOKIES_DB), tmp_path], check=True, capture_output=True
+        )
 
         conn = sqlite3.connect(tmp_path)
         conn.row_factory = sqlite3.Row
@@ -136,13 +156,15 @@ def _read_cookies(host_patterns: list[str]) -> list[dict]:
         )
 
         cursor = conn.cursor()
-        cursor.execute(f"""
+        cursor.execute(
+            f"""
             SELECT name, host_key, path, expires_utc, is_secure, is_httponly,
                    last_access_utc, has_expires, is_persistent
             FROM cookies
             WHERE {where_clauses}
             ORDER BY name
-        """)
+        """
+        )
 
         cookies = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -205,7 +227,9 @@ def check_session(service: str) -> dict:
         profile = service
 
     result = {
-        "service": service if isinstance(service, str) else profile.get("label", "custom"),
+        "service": service
+        if isinstance(service, str)
+        else profile.get("label", "custom"),
         "label": profile.get("label", service),
         "valid": False,
         "cookies_found": [],
@@ -239,13 +263,15 @@ def check_session(service: str) -> dict:
                 if earliest_expiry is None or expiry_dt < earliest_expiry:
                     earliest_expiry = expiry_dt
 
-                result["details"].append({
-                    "name": name,
-                    "host": cookie["host_key"],
-                    "expires": expiry_dt.isoformat(),
-                    "secure": bool(cookie["is_secure"]),
-                    "httponly": bool(cookie["is_httponly"]),
-                })
+                result["details"].append(
+                    {
+                        "name": name,
+                        "host": cookie["host_key"],
+                        "expires": expiry_dt.isoformat(),
+                        "secure": bool(cookie["is_secure"]),
+                        "httponly": bool(cookie["is_httponly"]),
+                    }
+                )
 
     result["cookies_found"] = sorted(found)
     result["cookies_missing"] = sorted(expected - found)
@@ -283,6 +309,7 @@ def get_vnc_url() -> str:
     """Get the VNC URL for manual browser login (port 6081, no password)."""
     try:
         from phantom.vnc import get_vnc_url as _get_vnc_url
+
         return _get_vnc_url()
     except ImportError:
         try:
@@ -323,7 +350,11 @@ def print_status(results: Optional[dict] = None, service: Optional[str] = None):
             any_invalid = True
         elif result["valid"]:
             found = ", ".join(result["cookies_found"][:5])
-            extra = f" +{len(result['cookies_found'])-5} more" if len(result["cookies_found"]) > 5 else ""
+            extra = (
+                f" +{len(result['cookies_found'])-5} more"
+                if len(result["cookies_found"]) > 5
+                else ""
+            )
             print(f"\n  ✅ {label}: ACTIVE")
             print(f"     Cookies: {found}{extra}")
             if result["earliest_expiry"]:
@@ -411,7 +442,9 @@ def main():
 
     elif cmd == "services":
         for svc in list_services():
-            print(f"  {svc['name']:12s}  {svc['label']} ({svc['cookies_tracked']} cookies)")
+            print(
+                f"  {svc['name']:12s}  {svc['label']} ({svc['cookies_tracked']} cookies)"
+            )
 
     elif cmd in ("login-url", "url", "login", "vnc"):
         print(get_vnc_url())
@@ -434,7 +467,9 @@ def main():
 
     else:
         print(f"Unknown command: {cmd}")
-        print("Usage: status | check <service> | services | login-url | monitor [min] | json [service]")
+        print(
+            "Usage: status | check <service> | services | login-url | monitor [min] | json [service]"
+        )
         sys.exit(1)
 
 

@@ -1,14 +1,14 @@
 """Tests for phantom.observer module."""
 
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
 from phantom.observer import (
-    _format_a11y_node,
     _build_text_summary,
     _detect_overlay,
     _extract_interactive_elements,
+    _format_a11y_node,
     _inject_som_labels,
     _remove_som_labels,
 )
@@ -57,14 +57,18 @@ class TestFormatA11yNode:
         node = {
             "role": "document",
             "name": "root",
-            "children": [{
-                "role": "div",
-                "name": "level1",
-                "children": [{
+            "children": [
+                {
                     "role": "div",
-                    "name": "level2",
-                }],
-            }],
+                    "name": "level1",
+                    "children": [
+                        {
+                            "role": "div",
+                            "name": "level2",
+                        }
+                    ],
+                }
+            ],
         }
         result = _format_a11y_node(node, max_depth=1)
         assert "root" in result
@@ -72,13 +76,21 @@ class TestFormatA11yNode:
         assert "level2" not in result
 
     def test_generic_nodes_skipped(self):
-        node = {"role": "generic", "name": "", "children": [{"role": "button", "name": "OK"}]}
+        node = {
+            "role": "generic",
+            "name": "",
+            "children": [{"role": "button", "name": "OK"}],
+        }
         result = _format_a11y_node(node)
         assert "[generic]" not in result
         assert '[button] "OK"' in result
 
     def test_none_role_skipped(self):
-        node = {"role": "none", "name": "", "children": [{"role": "link", "name": "Click"}]}
+        node = {
+            "role": "none",
+            "name": "",
+            "children": [{"role": "link", "name": "Click"}],
+        }
         result = _format_a11y_node(node)
         assert "[none]" not in result
         assert '[link] "Click"' in result
@@ -160,7 +172,13 @@ class TestExtractInteractiveElements:
     def test_returns_list(self):
         browser = MagicMock()
         browser.evaluate.return_value = [
-            {"index": 0, "tag": "button", "text": "Click", "selector": "#btn", "visible": True}
+            {
+                "index": 0,
+                "tag": "button",
+                "text": "Click",
+                "selector": "#btn",
+                "visible": True,
+            }
         ]
         result = _extract_interactive_elements(browser)
         assert isinstance(result, list)
@@ -220,7 +238,12 @@ class TestSomLabels:
     def test_inject_caps_at_50(self):
         browser = MagicMock()
         elements = [
-            {"index": i, "selector": f"#btn{i}", "selectors": [f"#btn{i}"], "visible": True}
+            {
+                "index": i,
+                "selector": f"#btn{i}",
+                "selectors": [f"#btn{i}"],
+                "visible": True,
+            }
             for i in range(100)
         ]
         _inject_som_labels(browser, elements)
@@ -231,7 +254,9 @@ class TestSomLabels:
     def test_inject_error_handled(self):
         browser = MagicMock()
         browser.evaluate.side_effect = Exception("JS error")
-        elements = [{"index": 0, "selector": "#btn", "selectors": ["#btn"], "visible": True}]
+        elements = [
+            {"index": 0, "selector": "#btn", "selectors": ["#btn"], "visible": True}
+        ]
         # Should not raise
         _inject_som_labels(browser, elements)
 

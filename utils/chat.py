@@ -31,10 +31,10 @@ Usage:
 """
 
 import json
-import requests
 from typing import Generator
 
-from utils.litellm_client import get_headers, api_url, resolve_model, get_config
+import requests
+from utils.litellm_client import api_url, get_config, get_headers, resolve_model
 
 
 def chat_messages(
@@ -123,8 +123,9 @@ def chat(
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
 
-    return chat_messages(messages, model=model, max_tokens=max_tokens,
-                         temperature=temperature, **kwargs)
+    return chat_messages(
+        messages, model=model, max_tokens=max_tokens, temperature=temperature, **kwargs
+    )
 
 
 def chat_stream(
@@ -230,8 +231,9 @@ def chat_json(
     if system:
         json_system = f"{system}\n\n{json_system}"
 
-    response = chat(prompt, model=model, system=json_system,
-                    max_tokens=max_tokens, temperature=0.0)
+    response = chat(
+        prompt, model=model, system=json_system, max_tokens=max_tokens, temperature=0.0
+    )
 
     # Strip markdown code fences if present
     text = response.strip()
@@ -265,8 +267,11 @@ if __name__ == "__main__":
 
     # Test with system prompt
     print("3. Chat with system prompt:")
-    result = chat("What are you?", model="claude-sonnet",
-                  system="You are a pirate. Respond in pirate speak.")
+    result = chat(
+        "What are you?",
+        model="claude-sonnet",
+        system="You are a pirate. Respond in pirate speak.",
+    )
     print(f"   Response: {result.strip()[:100]}\n")
 
     # Test JSON mode

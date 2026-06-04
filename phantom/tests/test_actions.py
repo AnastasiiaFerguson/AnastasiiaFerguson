@@ -1,18 +1,18 @@
 """Tests for phantom.actions module."""
 
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
 from phantom.actions import (
+    _dismiss_overlay,
+    _get_selector_candidates,
+    _is_transient_error,
+    _resolve_selector,
+    _selector_cache,
+    clear_selector_cache,
     execute_action,
     set_elements,
-    clear_selector_cache,
-    _resolve_selector,
-    _get_selector_candidates,
-    _dismiss_overlay,
-    _is_transient_error,
-    _selector_cache,
 )
 
 
@@ -33,7 +33,11 @@ def mock_browser():
     browser.url = "https://example.com"
     browser.title = "Example"
     browser.page = MagicMock()
-    browser.goto.return_value = {"url": "https://example.com", "title": "Example", "status": 200}
+    browser.goto.return_value = {
+        "url": "https://example.com",
+        "title": "Example",
+        "status": 200,
+    }
     browser.text.return_value = "Hello World"
     browser.html.return_value = "<div>Hello</div>"
     browser.attribute.return_value = "https://example.com"
@@ -51,10 +55,16 @@ class TestResolveSelector:
         assert _resolve_selector("button.primary") == "button.primary"
 
     def test_index_selector_with_elements(self):
-        set_elements([
-            {"index": 0, "selector": "#real-btn", "selectors": ["#real-btn"]},
-            {"index": 1, "selector": "input[name='q']", "selectors": ["input[name='q']"]},
-        ])
+        set_elements(
+            [
+                {"index": 0, "selector": "#real-btn", "selectors": ["#real-btn"]},
+                {
+                    "index": 1,
+                    "selector": "input[name='q']",
+                    "selectors": ["input[name='q']"],
+                },
+            ]
+        )
         assert _resolve_selector("[0]") == "#real-btn"
         assert _resolve_selector("[1]") == "input[name='q']"
 
@@ -79,41 +89,47 @@ class TestGetSelectorCandidates:
         assert len(candidates) >= 1
 
     def test_index_selector_with_alternatives(self):
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#submit",
-                "selectors": ["#submit", "button[name='submit']", "text=Submit"],
-                "id": "submit",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#submit",
+                    "selectors": ["#submit", "button[name='submit']", "text=Submit"],
+                    "id": "submit",
+                },
+            ]
+        )
         candidates = _get_selector_candidates("[0]")
         assert "#submit" in candidates
         assert "button[name='submit']" in candidates
         assert "text=Submit" in candidates
 
     def test_matching_element_by_id(self):
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#search",
-                "selectors": ["#search", "input[name='q']"],
-                "id": "search",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#search",
+                    "selectors": ["#search", "input[name='q']"],
+                    "id": "search",
+                },
+            ]
+        )
         candidates = _get_selector_candidates("#search")
         assert "#search" in candidates
         assert "input[name='q']" in candidates
 
     def test_deduplication(self):
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#btn",
-                "selectors": ["#btn", "#btn", "text=Click"],
-                "id": "btn",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#btn",
+                    "selectors": ["#btn", "#btn", "text=Click"],
+                    "id": "btn",
+                },
+            ]
+        )
         candidates = _get_selector_candidates("#btn")
         assert candidates.count("#btn") == 1  # no duplicates
 
@@ -136,12 +152,16 @@ class TestExecuteAction:
         mock_browser.click.assert_called_once()
 
     def test_fill(self, mock_browser):
-        result = execute_action(mock_browser, "fill", {"selector": "#input", "value": "hello"})
+        result = execute_action(
+            mock_browser, "fill", {"selector": "#input", "value": "hello"}
+        )
         assert "Filled" in result
         mock_browser.fill.assert_called_once()
 
     def test_type_text(self, mock_browser):
-        result = execute_action(mock_browser, "type_text", {"selector": "#input", "text": "hello"})
+        result = execute_action(
+            mock_browser, "type_text", {"selector": "#input", "text": "hello"}
+        )
         assert "Typed" in result
         mock_browser.type_text.assert_called_once()
 
@@ -151,7 +171,9 @@ class TestExecuteAction:
         mock_browser.page.keyboard.press.assert_called_with("Enter")
 
     def test_press_with_selector(self, mock_browser):
-        result = execute_action(mock_browser, "press", {"key": "Enter", "selector": "#input"})
+        result = execute_action(
+            mock_browser, "press", {"key": "Enter", "selector": "#input"}
+        )
         assert "Pressed Enter" in result
         mock_browser.press.assert_called_once()
 
@@ -174,7 +196,9 @@ class TestExecuteAction:
         assert "<div>" in result
 
     def test_extract_attribute(self, mock_browser):
-        result = execute_action(mock_browser, "extract_attribute", {"selector": "a", "attribute": "href"})
+        result = execute_action(
+            mock_browser, "extract_attribute", {"selector": "a", "attribute": "href"}
+        )
         assert "https://example.com" in result
 
     def test_go_back(self, mock_browser):
@@ -204,7 +228,9 @@ class TestExecuteAction:
         assert "FAIL" in result
 
     def test_need_human(self, mock_browser):
-        result = execute_action(mock_browser, "need_human", {"reason": "CAPTCHA detected"})
+        result = execute_action(
+            mock_browser, "need_human", {"reason": "CAPTCHA detected"}
+        )
         assert "NEED_HUMAN" in result
 
     def test_unknown_action(self, mock_browser):
@@ -230,11 +256,17 @@ class TestExecuteAction:
         assert "Checked" in result
 
     def test_select_option_by_value(self, mock_browser):
-        result = execute_action(mock_browser, "select_option", {"selector": "#dropdown", "value": "opt1"})
+        result = execute_action(
+            mock_browser, "select_option", {"selector": "#dropdown", "value": "opt1"}
+        )
         assert "Selected" in result
 
     def test_select_option_by_label(self, mock_browser):
-        result = execute_action(mock_browser, "select_option", {"selector": "#dropdown", "label": "Option 1"})
+        result = execute_action(
+            mock_browser,
+            "select_option",
+            {"selector": "#dropdown", "label": "Option 1"},
+        )
         assert "Selected" in result
         assert "Option 1" in result
 
@@ -281,14 +313,16 @@ class TestSelfHealing:
         assert mock_browser.click.call_count == 1
 
     def test_click_with_healing_fallback(self, mock_browser):
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#btn",
-                "selectors": ["#btn", "button[name='submit']", "text=Submit"],
-                "id": "btn",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#btn",
+                    "selectors": ["#btn", "button[name='submit']", "text=Submit"],
+                    "id": "btn",
+                },
+            ]
+        )
         # Primary fails, second alternative succeeds
         mock_browser.click.side_effect = [
             Exception("not found"),  # #btn fails
@@ -299,19 +333,23 @@ class TestSelfHealing:
         assert mock_browser.click.call_count == 2
 
     def test_fill_with_healing_fallback(self, mock_browser):
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#email",
-                "selectors": ["#email", "input[name='email']"],
-                "id": "email",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#email",
+                    "selectors": ["#email", "input[name='email']"],
+                    "id": "email",
+                },
+            ]
+        )
         mock_browser.fill.side_effect = [
             Exception("not found"),
             None,
         ]
-        result = execute_action(mock_browser, "fill", {"selector": "#email", "value": "test@test.com"})
+        result = execute_action(
+            mock_browser, "fill", {"selector": "#email", "value": "test@test.com"}
+        )
         assert "Filled" in result
 
 
@@ -320,14 +358,16 @@ class TestSelectorCache:
 
     def test_cache_records_successful_fallback(self, mock_browser):
         """When a fallback selector succeeds, it's cached for next time."""
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#btn",
-                "selectors": ["#btn", "button[name='submit']"],
-                "id": "btn",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#btn",
+                    "selectors": ["#btn", "button[name='submit']"],
+                    "id": "btn",
+                },
+            ]
+        )
         # Primary fails, fallback succeeds
         mock_browser.click.side_effect = [
             Exception("not found"),  # #btn fails
@@ -337,21 +377,25 @@ class TestSelectorCache:
 
         # Cache should map #btn -> button[name='submit']
         from phantom.actions import _selector_cache
+
         assert _selector_cache.get("#btn") == "button[name='submit']"
 
     def test_cached_selector_tried_first(self, mock_browser):
         """Cached selector should be the first candidate on retry."""
-        set_elements([
-            {
-                "index": 0,
-                "selector": "#btn",
-                "selectors": ["#btn", "button[name='submit']", "text=Submit"],
-                "id": "btn",
-            },
-        ])
+        set_elements(
+            [
+                {
+                    "index": 0,
+                    "selector": "#btn",
+                    "selectors": ["#btn", "button[name='submit']", "text=Submit"],
+                    "id": "btn",
+                },
+            ]
+        )
         # Simulate a cached resolution
-        from phantom.actions import _selector_cache, _cache_url
         import phantom.actions
+        from phantom.actions import _cache_url, _selector_cache
+
         phantom.actions._selector_cache["#btn"] = "button[name='submit']"
         phantom.actions._cache_url = "https://example.com"
 
@@ -362,6 +406,7 @@ class TestSelectorCache:
     def test_cache_cleared_on_navigation(self, mock_browser):
         """Cache should be invalidated when navigating to a new page."""
         import phantom.actions
+
         phantom.actions._selector_cache["#btn"] = "button[name='submit']"
         phantom.actions._cache_url = "https://example.com"
 
@@ -372,6 +417,7 @@ class TestSelectorCache:
     def test_cache_cleared_on_go_back(self, mock_browser):
         """Cache should be invalidated on go_back."""
         import phantom.actions
+
         phantom.actions._selector_cache["#btn"] = "fallback"
         phantom.actions._cache_url = "https://example.com"
 
@@ -382,6 +428,7 @@ class TestSelectorCache:
     def test_cache_cleared_on_reload(self, mock_browser):
         """Cache should be invalidated on reload."""
         import phantom.actions
+
         phantom.actions._selector_cache["#btn"] = "fallback"
         phantom.actions._cache_url = "https://example.com"
 
@@ -392,6 +439,7 @@ class TestSelectorCache:
     def test_cache_invalidated_on_url_change(self, mock_browser):
         """Cache should be invalidated if browser URL changes between actions."""
         import phantom.actions
+
         phantom.actions._selector_cache["#btn"] = "fallback"
         phantom.actions._cache_url = "https://old-page.com"
 
@@ -406,6 +454,7 @@ class TestSelectorCache:
         execute_action(mock_browser, "click", {"selector": "#btn"})
 
         from phantom.actions import _selector_cache
+
         assert "#btn" not in _selector_cache
 
 
@@ -419,7 +468,9 @@ class TestTransientErrorRetry:
         assert _is_transient_error(Exception("Execution context was destroyed"))
 
     def test_is_transient_intercepted(self):
-        assert _is_transient_error(Exception("Element click intercepted by another element"))
+        assert _is_transient_error(
+            Exception("Element click intercepted by another element")
+        )
 
     def test_is_not_transient_not_found(self):
         assert not _is_transient_error(Exception("Element not found"))
@@ -443,7 +494,9 @@ class TestTransientErrorRetry:
             Exception("Execution context was destroyed"),  # first try
             None,  # retry succeeds
         ]
-        result = execute_action(mock_browser, "fill", {"selector": "#input", "value": "test"})
+        result = execute_action(
+            mock_browser, "fill", {"selector": "#input", "value": "test"}
+        )
         assert "Filled" in result
         assert mock_browser.fill.call_count == 2
 
@@ -479,11 +532,16 @@ class TestNavigationAwareClick:
     def test_click_detects_navigation(self, mock_browser):
         """When URL changes after click, should wait for page load and clear cache."""
         import phantom.actions
+
         phantom.actions._cache_url = "https://example.com"
 
         # URL changes after click: first call returns original, subsequent returns new
-        url_calls = iter(["https://example.com", "https://example.com", "https://example.com/page2"])
-        type(mock_browser).url = property(lambda self: next(url_calls, "https://example.com/page2"))
+        url_calls = iter(
+            ["https://example.com", "https://example.com", "https://example.com/page2"]
+        )
+        type(mock_browser).url = property(
+            lambda self: next(url_calls, "https://example.com/page2")
+        )
 
         execute_action(mock_browser, "click", {"selector": "#link"})
         # Cache should be cleared due to navigation and load state waited on
@@ -518,12 +576,16 @@ class TestExtendedActions:
         mock_browser.scroll_to_bottom.assert_called_once()
 
     def test_wait_for_element(self, mock_browser):
-        result = execute_action(mock_browser, "wait_for_element", {"selector": "#loaded"})
+        result = execute_action(
+            mock_browser, "wait_for_element", {"selector": "#loaded"}
+        )
         assert "appeared" in result
         mock_browser.wait_for.assert_called_once()
 
     def test_wait_for_element_timeout(self, mock_browser):
-        result = execute_action(mock_browser, "wait_for_element", {"selector": "#loaded", "timeout": 5000})
+        result = execute_action(
+            mock_browser, "wait_for_element", {"selector": "#loaded", "timeout": 5000}
+        )
         mock_browser.wait_for.assert_called_with("#loaded", timeout=5000)
 
     def test_extract_table(self, mock_browser):
@@ -532,14 +594,18 @@ class TestExtendedActions:
             ["Alice", "30"],
             ["Bob", "25"],
         ]
-        result = execute_action(mock_browser, "extract_table", {"selector": "table#users"})
+        result = execute_action(
+            mock_browser, "extract_table", {"selector": "table#users"}
+        )
         assert "3 rows" in result
         assert "Alice" in result
         assert "Name | Age" in result
 
     def test_extract_table_not_found(self, mock_browser):
         mock_browser.evaluate.return_value = None
-        result = execute_action(mock_browser, "extract_table", {"selector": "table.missing"})
+        result = execute_action(
+            mock_browser, "extract_table", {"selector": "table.missing"}
+        )
         assert "No table found" in result
 
     def test_extract_links(self, mock_browser):

@@ -25,9 +25,9 @@ Usage:
 """
 
 import math
-import requests
 
-from utils.litellm_client import get_headers, api_url, resolve_model
+import requests
+from utils.litellm_client import api_url, get_headers, resolve_model
 
 DEFAULT_EMBED_MODEL = "embed-small"
 

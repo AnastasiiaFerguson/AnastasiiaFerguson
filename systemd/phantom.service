@@ -16,8 +16,11 @@ RestartSec=30s
 Environment=HOME=/root
 Environment=DISPLAY=:99
 Environment=PYTHONPATH=/workspace
-StandardOutput=append:/workspace/logs/phantom-service.log
-StandardError=append:/workspace/logs/phantom-service.log
+# orchestrator.py owns its own log file: /workspace/logs/phantom_YYYY-MM-DD.log
+# systemd captures any pre-logging stdout/stderr (import errors, claude-wrapper
+# bleed-through) into the journal — view with: journalctl -u phantom -f
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=phantom
 
 [Install]

@@ -107,19 +107,27 @@ def check_github() -> dict:
     try:
         result = subprocess.run(
             ["gh", "auth", "status"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             # Extract account info from output
             output = result.stdout + result.stderr
-            return {"status": "ok", "message": "GitHub authenticated", "details": output.strip()[:200]}
+            return {
+                "status": "ok",
+                "message": "GitHub authenticated",
+                "details": output.strip()[:200],
+            }
         else:
             has_token = MCP_TOKEN_FILE.exists()
             return {
                 "status": "error",
                 "message": "GitHub not authenticated",
                 "token_available": has_token,
-                "fix": 'cat /dev/shm/mcp-token | python -c "import sys,json; print(json.loads(sys.stdin.read().split(\'=\',1)[1])[\'access_token\'])" | gh auth login --with-token' if has_token else "No token found at /dev/shm/mcp-token",
+                "fix": "cat /dev/shm/mcp-token | python -c \"import sys,json; print(json.loads(sys.stdin.read().split('=',1)[1])['access_token'])\" | gh auth login --with-token"
+                if has_token
+                else "No token found at /dev/shm/mcp-token",
             }
     except subprocess.TimeoutExpired:
         return {"status": "error", "message": "GitHub auth check timed out"}
@@ -185,11 +193,16 @@ def check_files() -> dict:
         "agent-docs/PHANTOM_SPEC.md",
         "agent-docs/AGENT_PROTOCOL.md",
         "agent-docs/SLACK_INTERFACE.md",
+        "agent-docs/PIPEDREAM_CONNECT.md",
     ]
     missing = [f for f in required if not (REPO_ROOT / f).exists()]
 
     if missing:
-        return {"status": "error", "message": f"Missing files: {', '.join(missing)}", "missing": missing}
+        return {
+            "status": "error",
+            "message": f"Missing files: {', '.join(missing)}",
+            "missing": missing,
+        }
     return {"status": "ok", "message": f"All {len(required)} required files present"}
 
 
@@ -236,7 +249,9 @@ def run_health_check(auto_fix: bool = False) -> dict:
             try:
                 subprocess.run(
                     ["python", "phantom/browser_server.py", "start"],
-                    cwd=str(REPO_ROOT), capture_output=True, timeout=30,
+                    cwd=str(REPO_ROOT),
+                    capture_output=True,
+                    timeout=30,
                 )
                 results["browser"] = check_browser()
                 if results["browser"]["status"] == "ok":
@@ -255,7 +270,10 @@ def run_health_check(auto_fix: bool = False) -> dict:
                         if token:
                             subprocess.run(
                                 ["gh", "auth", "login", "--with-token"],
-                                input=token, capture_output=True, text=True, timeout=15,
+                                input=token,
+                                capture_output=True,
+                                text=True,
+                                timeout=15,
                             )
                             results["github"] = check_github()
                             if results["github"]["status"] == "ok":
@@ -268,6 +286,7 @@ def run_health_check(auto_fix: bool = False) -> dict:
             try:
                 sys.path.insert(0, str(REPO_ROOT))
                 from orchestrator import ensure_settings_file, setup_logging
+
                 logger = setup_logging("health_check")
                 if ensure_settings_file(logger):
                     results["settings"] = check_settings()
@@ -338,7 +357,9 @@ Examples:
         """,
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
-    parser.add_argument("--fix", action="store_true", help="Attempt auto-fix for common issues")
+    parser.add_argument(
+        "--fix", action="store_true", help="Attempt auto-fix for common issues"
+    )
 
     args = parser.parse_args()
     results = run_health_check(auto_fix=args.fix)

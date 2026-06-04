@@ -6,8 +6,8 @@ Reads settings from environment variables, phantom/config.json, or defaults.
 
 import json
 import os
-from pathlib import Path
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 PHANTOM_DIR = Path(__file__).parent
@@ -23,7 +23,7 @@ SCREENSHOTS_DIR.mkdir(exist_ok=True)
 @dataclass
 class PhantomConfig:
     # LLM settings
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-opus-4-8"
     max_tokens: int = 4096
     temperature: float = 0.0
 

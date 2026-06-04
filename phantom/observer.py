@@ -14,6 +14,7 @@ import re
 from typing import Optional
 
 from browser_interface import BrowserInterface
+
 from phantom.config import SCREENSHOTS_DIR
 
 
@@ -169,7 +170,7 @@ def _build_text_summary(browser: BrowserInterface) -> str:
     try:
         body_text = browser.text("body")
         if body_text:
-            text = re.sub(r'\s+', ' ', body_text).strip()[:2000]
+            text = re.sub(r"\s+", " ", body_text).strip()[:2000]
             return f"Page text: {text}"
     except Exception:
         pass
@@ -342,7 +343,11 @@ def _inject_som_labels(browser: BrowserInterface, elements: list[dict]) -> None:
     """
     try:
         label_data = [
-            {"index": e["index"], "selector": e.get("selector", ""), "selectors": e.get("selectors", [])}
+            {
+                "index": e["index"],
+                "selector": e.get("selector", ""),
+                "selectors": e.get("selectors", []),
+            }
             for e in visible[:50]  # Cap at 50 labels to avoid visual clutter
         ]
         browser.evaluate(js, label_data)
@@ -353,6 +358,8 @@ def _inject_som_labels(browser: BrowserInterface, elements: list[dict]) -> None:
 def _remove_som_labels(browser: BrowserInterface) -> None:
     """Remove Set-of-Mark labels from the page."""
     try:
-        browser.evaluate("(() => { const el = document.getElementById('phantom-som'); if (el) el.remove(); })()")
+        browser.evaluate(
+            "(() => { const el = document.getElementById('phantom-som'); if (el) el.remove(); })()"
+        )
     except Exception:
         pass

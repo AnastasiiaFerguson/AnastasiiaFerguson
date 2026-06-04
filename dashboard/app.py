@@ -5,17 +5,15 @@ Combines agent identity, real-time logs, and Claude Code monitor data
 in a single Flask application (no separate claude_monitor process needed).
 """
 
-import os
-import sys
 import json
-import glob
-import time
+import os
 import threading
-from pathlib import Path
+import time
 from datetime import datetime
-from flask import Flask, render_template, jsonify, Response, request
-from flask_cors import CORS
+from pathlib import Path
 
+from flask import Flask, Response, jsonify, render_template, request
+from flask_cors import CORS
 from utils.pricing import get_pricing as get_pricing_for_model
 
 app = Flask(__name__)
@@ -37,8 +35,11 @@ def _find_project_root() -> Path:
 
 
 NINJA_SQUAD_DIR = _find_project_root()
+
 LOGS_DIR = Path("/workspace/logs")
-AVATAR_BASE_URL = "https://sites.super.betamyninja.ai/44664728-914e-4c05-bdf2-d171ad4edcb3/1be98e7b"
+AVATAR_BASE_URL = (
+    "https://sites.super.betamyninja.ai/44664728-914e-4c05-bdf2-d171ad4edcb3/82c331aa"
+)
 
 # Claude session data
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
@@ -46,8 +47,13 @@ CACHE_TTL = 10  # seconds
 
 # Agent definitions
 AGENTS = {
-    "phantom": {"name": "Phantom", "role": "Browser Automation Agent", "emoji": "\U0001f47b", "color": "#8b5cf6",
-                "icon_url": f"{AVATAR_BASE_URL}/phantom.png"},
+    "phantom": {
+        "name": "Phantom",
+        "role": "Browser Automation Agent",
+        "emoji": "\U0001f47b",
+        "color": "#8b5cf6",
+        "icon_url": f"{AVATAR_BASE_URL}/phantom.png",
+    },
 }
 
 
@@ -77,12 +83,14 @@ def get_log_files():
     files = []
     if LOGS_DIR.exists():
         for f in LOGS_DIR.glob("*.log"):
-            files.append({
-                "name": f.name,
-                "path": str(f),
-                "size": f.stat().st_size,
-                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
-            })
+            files.append(
+                {
+                    "name": f.name,
+                    "path": str(f),
+                    "size": f.stat().st_size,
+                    "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                }
+            )
     files.sort(key=lambda x: x["modified"], reverse=True)
     return files
 
@@ -90,11 +98,11 @@ def get_log_files():
 def tail_file(filepath, lines=500):
     """Read last N lines from a file in reverse order (newest first)."""
     try:
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             all_lines = f.readlines()
         result = all_lines[-lines:] if len(all_lines) > lines else all_lines
         result.reverse()
-        return ''.join(result)
+        return "".join(result)
     except Exception as e:
         return f"Error reading log: {e}"
 
@@ -177,7 +185,9 @@ def parse_jsonl_file(filepath: str) -> SessionData:
 
                     # Dedup: skip counting if usage is identical to previous entry
                     usage_key = (inp, out, cr, cw_5m, cw_1h)
-                    is_dup = hasattr(data, '_prev_usage') and usage_key == data._prev_usage
+                    is_dup = (
+                        hasattr(data, "_prev_usage") and usage_key == data._prev_usage
+                    )
                     data._prev_usage = usage_key
 
                     if not is_dup:
@@ -188,15 +198,21 @@ def parse_jsonl_file(filepath: str) -> SessionData:
                         data.cache_read_tokens += cr
 
                     # Timeline entry (only for non-duplicate)
-                    if not is_dup and timestamp and (inp or out or cr or cw_5m or cw_1h):
-                        data.timeline.append({
-                            "timestamp": timestamp,
-                            "input_tokens": inp,
-                            "output_tokens": out,
-                            "cache_read_tokens": cr,
-                            "cache_write_5m_tokens": cw_5m,
-                            "cache_write_1h_tokens": cw_1h,
-                        })
+                    if (
+                        not is_dup
+                        and timestamp
+                        and (inp or out or cr or cw_5m or cw_1h)
+                    ):
+                        data.timeline.append(
+                            {
+                                "timestamp": timestamp,
+                                "input_tokens": inp,
+                                "output_tokens": out,
+                                "cache_read_tokens": cr,
+                                "cache_write_5m_tokens": cw_5m,
+                                "cache_write_1h_tokens": cw_1h,
+                            }
+                        )
 
                 # Extract tool uses from assistant messages
                 content = msg.get("content", [])
@@ -211,31 +227,40 @@ def parse_jsonl_file(filepath: str) -> SessionData:
                     user_content = msg.get("content", "")
                     if isinstance(user_content, str) and user_content.strip():
                         # New text prompt — start a new trajectory
-                        data.prompts.append({
-                            "timestamp": timestamp,
-                            "content": user_content[:2000],
-                            "response": "",
-                            "uuid": entry.get("uuid", ""),
-                            "steps": [],       # [{type, name/text, timestamp}]
-                            "tool_count": 0,
-                            "step_count": 0,
-                        })
+                        data.prompts.append(
+                            {
+                                "timestamp": timestamp,
+                                "content": user_content[:2000],
+                                "response": "",
+                                "uuid": entry.get("uuid", ""),
+                                "steps": [],  # [{type, name/text, timestamp}]
+                                "tool_count": 0,
+                                "step_count": 0,
+                            }
+                        )
                     elif isinstance(user_content, list) and data.prompts:
                         # Tool results — part of current trajectory
                         data.prompts[-1]["step_count"] += 1
                         for item in user_content:
-                            if isinstance(item, dict) and item.get("type") == "tool_result":
+                            if (
+                                isinstance(item, dict)
+                                and item.get("type") == "tool_result"
+                            ):
                                 output = item.get("content", "")
                                 if isinstance(output, list):
                                     output = " ".join(
-                                        p.get("text", "") for p in output if isinstance(p, dict)
+                                        p.get("text", "")
+                                        for p in output
+                                        if isinstance(p, dict)
                                     )
-                                data.prompts[-1]["steps"].append({
-                                    "type": "tool_result",
-                                    "name": item.get("tool_use_id", ""),
-                                    "output": str(output)[:1500],
-                                    "timestamp": timestamp,
-                                })
+                                data.prompts[-1]["steps"].append(
+                                    {
+                                        "type": "tool_result",
+                                        "name": item.get("tool_use_id", ""),
+                                        "output": str(output)[:1500],
+                                        "timestamp": timestamp,
+                                    }
+                                )
 
                 # Capture assistant actions (tool calls + text) inside the trajectory
                 if entry_type == "assistant" and data.prompts:
@@ -248,27 +273,37 @@ def parse_jsonl_file(filepath: str) -> SessionData:
                                     # Build a short summary of the tool input
                                     input_summary = ""
                                     if isinstance(tool_input, dict):
-                                        cmd = tool_input.get("command", tool_input.get("description", tool_input.get("content", "")))
+                                        cmd = tool_input.get(
+                                            "command",
+                                            tool_input.get(
+                                                "description",
+                                                tool_input.get("content", ""),
+                                            ),
+                                        )
                                         if cmd:
                                             input_summary = str(cmd)[:800]
                                         elif tool_input:
                                             # Fallback: show the full input dict as text
                                             input_summary = str(tool_input)[:800]
                                     data.prompts[-1]["tool_count"] += 1
-                                    data.prompts[-1]["steps"].append({
-                                        "type": "tool_use",
-                                        "name": tool_name,
-                                        "input": input_summary,
-                                        "timestamp": timestamp,
-                                    })
+                                    data.prompts[-1]["steps"].append(
+                                        {
+                                            "type": "tool_use",
+                                            "name": tool_name,
+                                            "input": input_summary,
+                                            "timestamp": timestamp,
+                                        }
+                                    )
                                 elif item.get("type") == "text":
                                     text_val = item.get("text", "").strip()
                                     if text_val:
-                                        data.prompts[-1]["steps"].append({
-                                            "type": "assistant_text",
-                                            "text": text_val[:1500],
-                                            "timestamp": timestamp,
-                                        })
+                                        data.prompts[-1]["steps"].append(
+                                            {
+                                                "type": "assistant_text",
+                                                "text": text_val[:1500],
+                                                "timestamp": timestamp,
+                                            }
+                                        )
                                         # Keep updating response to capture the latest text
                                         data.prompts[-1]["response"] = text_val[:3000]
 
@@ -315,19 +350,21 @@ class StatsCache:
         models_seen = {}  # model -> count of messages using it
         for f in files:
             sd = parse_jsonl_file(f)
-            sessions.append({
-                "session_id": sd.session_id,
-                "messages": sd.messages,
-                "input_tokens": sd.input_tokens,
-                "output_tokens": sd.output_tokens,
-                "cache_write_5m_tokens": sd.cache_write_5m_tokens,
-                "cache_write_1h_tokens": sd.cache_write_1h_tokens,
-                "cache_read_tokens": sd.cache_read_tokens,
-                "tool_uses": sum(sd.tool_uses.values()),
-                "start_time": sd.start_time,
-                "last_time": sd.last_time,
-                "model": sd.model,
-            })
+            sessions.append(
+                {
+                    "session_id": sd.session_id,
+                    "messages": sd.messages,
+                    "input_tokens": sd.input_tokens,
+                    "output_tokens": sd.output_tokens,
+                    "cache_write_5m_tokens": sd.cache_write_5m_tokens,
+                    "cache_write_1h_tokens": sd.cache_write_1h_tokens,
+                    "cache_read_tokens": sd.cache_read_tokens,
+                    "tool_uses": sum(sd.tool_uses.values()),
+                    "start_time": sd.start_time,
+                    "last_time": sd.last_time,
+                    "model": sd.model,
+                }
+            )
             if sd.model:
                 models_seen[sd.model] = models_seen.get(sd.model, 0) + 1
 
@@ -405,12 +442,12 @@ stats_cache = StatsCache()
 # ---------------------------------------------------------------------------
 # Routes - Dashboard
 # ---------------------------------------------------------------------------
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('dashboard.html')
+    return render_template("dashboard.html")
 
 
-@app.route('/api/agent')
+@app.route("/api/agent")
 def api_agent():
     """Get current agent info."""
     return jsonify(get_agent_info())
@@ -419,37 +456,37 @@ def api_agent():
 # ---------------------------------------------------------------------------
 # Routes - Log files
 # ---------------------------------------------------------------------------
-@app.route('/api/logs')
+@app.route("/api/logs")
 def api_logs():
     """List available log files."""
     return jsonify({"files": get_log_files()})
 
 
-@app.route('/api/logs/<filename>')
+@app.route("/api/logs/<filename>")
 def api_log_content(filename):
     """Get content of a specific log file."""
     # Re-add .log extension if stripped (proxy may block .log URLs)
-    if not filename.endswith('.log'):
-        filename = filename + '.log'
+    if not filename.endswith(".log"):
+        filename = filename + ".log"
     filepath = LOGS_DIR / filename
     if not filepath.exists() or not str(filepath).startswith(str(LOGS_DIR)):
         return jsonify({"error": "File not found"}), 404
-    lines = int(request.args.get('lines', 200))
+    lines = int(request.args.get("lines", 200))
     content = tail_file(str(filepath), lines)
     return jsonify({"filename": filename, "content": content})
 
 
-@app.route('/api/logs/<filename>/stream')
+@app.route("/api/logs/<filename>/stream")
 def api_log_stream(filename):
     """Stream log file updates via SSE."""
-    if not filename.endswith('.log'):
-        filename = filename + '.log'
+    if not filename.endswith(".log"):
+        filename = filename + ".log"
     filepath = LOGS_DIR / filename
     if not filepath.exists():
         return jsonify({"error": "File not found"}), 404
 
     def generate():
-        with open(str(filepath), 'r') as f:
+        with open(str(filepath), "r") as f:
             # Start from end
             f.seek(0, 2)
             while True:
@@ -459,42 +496,45 @@ def api_log_stream(filename):
                 else:
                     time.sleep(0.5)
 
-    return Response(generate(), mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ---------------------------------------------------------------------------
 # Routes - Claude Monitor (direct, no proxy)
 # ---------------------------------------------------------------------------
-@app.route('/api/claude-monitor/stats')
+@app.route("/api/claude-monitor/stats")
 def api_claude_stats():
     """Get aggregate Claude usage stats."""
     data = stats_cache.get_stats()
     return jsonify({"stats": data["stats"]})
 
 
-@app.route('/api/claude-monitor/sessions')
+@app.route("/api/claude-monitor/sessions")
 def api_claude_sessions():
     """Get list of Claude sessions."""
     data = stats_cache.get_stats()
     return jsonify({"sessions": data["sessions"]})
 
 
-@app.route('/api/claude-monitor/tools/summary')
+@app.route("/api/claude-monitor/tools/summary")
 def api_claude_tools():
     """Get tool usage summary."""
     data = stats_cache.get_stats()
     return jsonify(data["tools"])
 
 
-@app.route('/api/claude-monitor/timeline')
+@app.route("/api/claude-monitor/timeline")
 def api_claude_timeline():
     """Get token usage timeline."""
     data = stats_cache.get_stats()
     return jsonify({"timeline": data["timeline"]})
 
 
-@app.route('/api/claude-monitor/prompts')
+@app.route("/api/claude-monitor/prompts")
 def api_claude_prompts():
     """Get recent user prompts with responses."""
     data = stats_cache.get_stats()
@@ -504,7 +544,7 @@ def api_claude_prompts():
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("\U0001f680 Starting Phantom Agent Dashboard...")
     agent = get_agent_info()
     print(f"   Agent: {agent['emoji']} {agent['name']} ({agent['role']})")
@@ -519,5 +559,5 @@ if __name__ == '__main__':
     print(f"   Total tool uses: {s['total_tool_uses']}")
     print(f"   Total cost: ${s['total_cost']:.4f}")
 
-    port = int(os.environ.get('DASHBOARD_PORT', 9000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    port = int(os.environ.get("DASHBOARD_PORT", 9000))
+    app.run(host="0.0.0.0", port=port, debug=False)

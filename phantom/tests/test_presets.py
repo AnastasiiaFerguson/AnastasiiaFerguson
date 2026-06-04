@@ -2,7 +2,7 @@
 
 import pytest
 
-from phantom.presets import get_preset_task, list_presets, PRESETS
+from phantom.presets import PRESETS, get_preset_task, list_presets
 
 
 class TestGetPresetTask:

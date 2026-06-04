@@ -15,6 +15,9 @@
 - `from tavily_client import Tavily; t = Tavily()` - Initialize
 - `t.search("query")`, `t.extract(["url"])`, `t.crawl("url")`, `t.research("topic")`
 
+**Pipedream Integrations:**
+- `tools/pdx.py` installs as `pdx`; see `agent-docs/PIPEDREAM_CONNECT.md` for OAuth dashboard, connected app discovery, and actions.
+
 ---
 
 ## Headless Mode

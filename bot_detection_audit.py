@@ -9,8 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from tools.stealth_audit import run_stealth_audit, quick_check, print_audit
+from tools.stealth_audit import print_audit, quick_check, run_stealth_audit
 
 if __name__ == "__main__":
     from tools.stealth_audit import main
+
     main()

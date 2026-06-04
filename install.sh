@@ -8,7 +8,7 @@
 #   1. Installs Python dependencies (requirements.txt)
 #   2. Creates the logs directory
 #   3. Configures Slack channel (agent is always 'phantom')
-#   4. Installs and enables phantom-sync.service, phantom.service, phantom-monitor.service, and phantom-dashboard.service
+#   4. Installs and enables phantom-sync.service, phantom.service, phantom-monitor.service, phantom-dashboard.service, and phantom-integrations.service
 #
 # Prerequisites (must be provided manually — not handled by this script):
 #   - s3_config.json at repo root or /root/  (AWS credentials for Slack S3 cache)
@@ -65,9 +65,50 @@ fi
 export PYTHONPATH="${PHANTOM_PARENT}:${PYTHONPATH:-}"
 echo "  ✓ PYTHONPATH configured (${PHANTOM_PARENT})"
 
+# --- 1.5. Install `pdx` CLI (Pipedream LLM wrapper) -------------------------
+# `pdx` is a tiny JSON-first CLI that exposes connected Pipedream
+# integrations to the LLM. Symlink it into /usr/local/bin so every
+# shell (supervisor, orchestrator, manual) can invoke `pdx ...`.
+PDX_SRC="$SCRIPT_DIR/bin/pdx"
+PDX_DST="/usr/local/bin/pdx"
+if [[ -f "$PDX_SRC" ]]; then
+    chmod +x "$PDX_SRC"
+    ln -sf "$PDX_SRC" "$PDX_DST"
+    echo "  ✓ pdx CLI installed → $PDX_DST"
+else
+    echo "  ⚠ bin/pdx not found — skipping pdx install"
+fi
+
 # --- 2. Log directory -------------------------------------------------------
 mkdir -p /workspace/logs
 echo "  ✓ Log directory ready (/workspace/logs)"
+
+# --- 2.5. Timezone ----------------------------------------------------------
+# Align the sandbox clock with the operator's Slack timezone so every
+# subsequent log line, cron tick, Slack message, and git commit happens
+# in the human's local time. Non-blocking: we warn and continue on any
+# failure so install never aborts because of a clock-config hiccup.
+#
+# The script lives inside the deployed package
+# (src/phantom/initial_setup_scripts/) so it ships through the CDK
+# PublishStack zip. It used to live at the repo root, where the
+# packaging step skipped it and every deployed agent silently fell
+# back to Etc/UTC.
+echo ""
+echo "▶ Aligning system timezone with Slack user profile..."
+TZ_SCRIPT="$SCRIPT_DIR/initial_setup_scripts/set_timezone.py"
+if [[ -f "$TZ_SCRIPT" ]]; then
+    # Route stdout to /dev/null — we print our own one-line confirmation below.
+    # Keep stderr so real errors still surface in the install log.
+    if python "$TZ_SCRIPT" --quiet >/dev/null; then
+        CURRENT_TZ="$(cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's#.*/zoneinfo/##')"
+        echo "  ✓ Timezone: ${CURRENT_TZ:-unknown}"
+    else
+        echo "  ⚠ set_timezone.py exited non-zero — continuing with the current system timezone."
+    fi
+else
+    echo "  ⚠ ${TZ_SCRIPT} not found — skipping timezone sync."
+fi
 
 # --- 3. Slack configuration — must come before systemd step ----------------
 echo ""
@@ -103,13 +144,15 @@ cp "$SCRIPT_DIR/systemd/phantom-sync.service" /etc/systemd/system/phantom-sync.s
 cp "$SCRIPT_DIR/systemd/phantom.service"              /etc/systemd/system/phantom.service
 cp "$SCRIPT_DIR/systemd/phantom-monitor.service"      /etc/systemd/system/phantom-monitor.service
 cp "$SCRIPT_DIR/systemd/phantom-dashboard.service"    /etc/systemd/system/phantom-dashboard.service
+cp "$SCRIPT_DIR/systemd/phantom-integrations.service" /etc/systemd/system/phantom-integrations.service
 systemctl daemon-reload
-systemctl enable phantom-sync.service phantom.service phantom-monitor.service phantom-dashboard.service
-systemctl start  phantom-sync.service phantom.service phantom-monitor.service phantom-dashboard.service
+systemctl enable phantom-sync.service phantom.service phantom-monitor.service phantom-dashboard.service phantom-integrations.service
+systemctl start  phantom-sync.service phantom.service phantom-monitor.service phantom-dashboard.service phantom-integrations.service
 echo "  ✓ phantom-sync.service installed, enabled and started (removes superninja config, syncs workspace to git)"
 echo "  ✓ phantom.service installed and enabled (single work cycle, restarts on failure)"
 echo "  ✓ phantom-monitor.service installed, enabled and started (continuous Slack watcher)"
 echo "  ✓ phantom-dashboard.service installed, enabled and started (port 9000)"
+echo "  ✓ phantom-integrations.service installed, enabled and started (port 9020)"
 
 # --- 5. VNC password-free configuration ------------------------------------
 echo ""

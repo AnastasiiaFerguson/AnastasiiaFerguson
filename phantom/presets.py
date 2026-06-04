@@ -16,7 +16,6 @@ Usage (Python):
 
 from typing import Optional
 
-
 # Preset definitions: name → task template
 PRESETS = {
     "screenshot": {

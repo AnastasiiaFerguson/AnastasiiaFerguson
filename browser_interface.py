@@ -22,29 +22,37 @@ VNC (human takeover):
     Headed browsers display on Xvfb :99 → x11vnc :5901 → noVNC :6080
 """
 
-import argparse, json, os, sys, time
+import argparse
+import json
+import os
+import sys
+import time
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional, Dict, List, Any
-from dataclasses import dataclass, field, asdict
+from typing import Any, Dict, List, Optional
 
 # Stealth: anti-bot detection evasion (applied automatically)
 _stealth_js = None
+
+
 def _get_stealth_js():
     """Lazy-load stealth JS to avoid circular imports."""
     global _stealth_js
     if _stealth_js is None:
         try:
             from phantom.stealth import STEALTH_JS
+
             _stealth_js = STEALTH_JS
         except ImportError:
             _stealth_js = ""
     return _stealth_js
 
+
 if not os.environ.get("DISPLAY"):
     os.environ["DISPLAY"] = ":99"
 
 try:
-    from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
+    from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 except ImportError:
     sys.exit("Error: pip install playwright && playwright install chromium")
 
@@ -52,35 +60,42 @@ except ImportError:
 @dataclass
 class ConsoleEntry:
     """A captured browser console message."""
-    type: str       # "log", "error", "warning", "info", "debug", "trace"
-    text: str       # message text
-    url: str = ""   # source URL
-    line: int = 0   # source line number
+
+    type: str  # "log", "error", "warning", "info", "debug", "trace"
+    text: str  # message text
+    url: str = ""  # source URL
+    line: int = 0  # source line number
+
 
 @dataclass
 class NetworkError:
     """A failed or errored network request."""
+
     url: str
     method: str = "GET"
-    status: int = 0        # HTTP status (0 = connection failed)
+    status: int = 0  # HTTP status (0 = connection failed)
     status_text: str = ""
     resource_type: str = ""
-    failure: str = ""      # failure reason (e.g. "net::ERR_CONNECTION_REFUSED")
+    failure: str = ""  # failure reason (e.g. "net::ERR_CONNECTION_REFUSED")
+
 
 @dataclass
 class PageError:
     """An uncaught JavaScript error on the page."""
+
     message: str
     name: str = ""
     stack: str = ""
 
+
 @dataclass
 class DevTools:
     """Collected developer tools data from the browser session.
-    
+
     Access via browser.devtools after navigating to a page.
     All lists accumulate across the session — call browser.clear_devtools() to reset.
     """
+
     console: List[ConsoleEntry] = field(default_factory=list)
     errors: List[PageError] = field(default_factory=list)
     network_errors: List[NetworkError] = field(default_factory=list)
@@ -149,7 +164,9 @@ class DevTools:
             lines.append(f"❌ Network Errors ({len(self.network_errors)}):")
             for n in self.network_errors:
                 if n.status:
-                    lines.append(f"   • {n.method} {n.url} → {n.status} {n.status_text}")
+                    lines.append(
+                        f"   • {n.method} {n.url} → {n.status} {n.status_text}"
+                    )
                 else:
                     lines.append(f"   • {n.method} {n.url} → FAILED: {n.failure}")
 
@@ -163,7 +180,7 @@ class DevTools:
 
 class BrowserInterface:
     """High-level Playwright wrapper with devtools capture.
-    
+
     Use as context manager or call start()/stop().
     Console logs, JS errors, and network failures are captured automatically
     and available via the .devtools property.
@@ -174,9 +191,18 @@ class BrowserInterface:
         Without user_data_dir, each session starts with a fresh ephemeral browser.
     """
 
-    def __init__(self, headless=False, viewport_width=1600, viewport_height=900,
-                 timeout=30000, slow_mo=0, user_agent=None, capture_console=True,
-                 user_data_dir=None, proxy=None):
+    def __init__(
+        self,
+        headless=False,
+        viewport_width=1600,
+        viewport_height=900,
+        timeout=30000,
+        slow_mo=0,
+        user_agent=None,
+        capture_console=True,
+        user_data_dir=None,
+        proxy=None,
+    ):
         """
         Args:
             headless: False = visible on VNC (default). True = no display.
@@ -208,14 +234,22 @@ class BrowserInterface:
         self.devtools = DevTools()
 
     def __enter__(self):
-        self.start(); return self
+        self.start()
+        return self
 
     def __exit__(self, *a):
-        self.stop(); return False
+        self.stop()
+        return False
 
     @classmethod
-    def connect_cdp(cls, endpoint="http://localhost:9222", viewport_width=1600,
-                    viewport_height=900, timeout=30000, capture_console=True):
+    def connect_cdp(
+        cls,
+        endpoint="http://localhost:9222",
+        viewport_width=1600,
+        viewport_height=900,
+        timeout=30000,
+        capture_console=True,
+    ):
         """Connect to an already-running Chromium via Chrome DevTools Protocol.
 
         This is the preferred way to use the browser in Phantom tasks.
@@ -235,6 +269,7 @@ class BrowserInterface:
             ConnectionError: If no browser is running on the endpoint.
         """
         import urllib.request
+
         # Quick health check
         try:
             urllib.request.urlopen(f"{endpoint}/json/version", timeout=3)
@@ -319,7 +354,9 @@ class BrowserInterface:
                 launch_args["proxy"] = {"server": self._proxy}
                 ctx_args.pop("proxy", None)
             self.browser = self._playwright.chromium.launch(
-                headless=self._headless, slow_mo=self._slow_mo, **launch_args,
+                headless=self._headless,
+                slow_mo=self._slow_mo,
+                **launch_args,
             )
             self.context = self.browser.new_context(**ctx_args)
             self._persistent = False
@@ -361,6 +398,7 @@ class BrowserInterface:
         Returns dict with: webdriver, webdriverType, chromeRuntime, plugins, languages.
         """
         from phantom.stealth import check_stealth
+
         return check_stealth(self)
 
     def check_session(self, service: str = "google") -> dict:
@@ -373,6 +411,7 @@ class BrowserInterface:
         Returns dict with: valid (bool), cookies_found (list), login_url (str), etc.
         """
         from phantom.session_health import check_session
+
         return check_session(service)
 
     def session_status(self) -> dict:
@@ -381,11 +420,13 @@ class BrowserInterface:
         Returns dict mapping service name → check result.
         """
         from phantom.session_health import check_all_sessions
+
         return check_all_sessions()
 
     def vnc_url(self) -> str:
         """Get the VNC URL for manual browser login."""
         from phantom.session_health import get_vnc_url
+
         return get_vnc_url()
 
     def _attach_devtools_listeners(self):
@@ -395,43 +436,55 @@ class BrowserInterface:
         # Capture console messages (log, error, warn, info, debug, etc.)
         def on_console(msg):
             location = msg.location
-            self.devtools.console.append(ConsoleEntry(
-                type=msg.type,
-                text=msg.text,
-                url=location.get("url", "") if location else "",
-                line=location.get("lineNumber", 0) if location else 0,
-            ))
+            self.devtools.console.append(
+                ConsoleEntry(
+                    type=msg.type,
+                    text=msg.text,
+                    url=location.get("url", "") if location else "",
+                    line=location.get("lineNumber", 0) if location else 0,
+                )
+            )
+
         page.on("console", on_console)
 
         # Capture uncaught JS errors (window.onerror / unhandled rejections)
         def on_page_error(error):
-            self.devtools.errors.append(PageError(
-                message=str(error),
-                name=getattr(error, "name", "Error"),
-                stack=getattr(error, "stack", ""),
-            ))
+            self.devtools.errors.append(
+                PageError(
+                    message=str(error),
+                    name=getattr(error, "name", "Error"),
+                    stack=getattr(error, "stack", ""),
+                )
+            )
+
         page.on("pageerror", on_page_error)
 
         # Capture failed network requests (connection errors, DNS failures)
         def on_request_failed(request):
-            self.devtools.network_errors.append(NetworkError(
-                url=request.url,
-                method=request.method,
-                resource_type=request.resource_type,
-                failure=request.failure or "Unknown failure",
-            ))
+            self.devtools.network_errors.append(
+                NetworkError(
+                    url=request.url,
+                    method=request.method,
+                    resource_type=request.resource_type,
+                    failure=request.failure or "Unknown failure",
+                )
+            )
+
         page.on("requestfailed", on_request_failed)
 
         # Capture HTTP error responses (4xx, 5xx)
         def on_response(response):
             if response.status >= 400:
-                self.devtools.network_errors.append(NetworkError(
-                    url=response.url,
-                    method=response.request.method,
-                    status=response.status,
-                    status_text=response.status_text,
-                    resource_type=response.request.resource_type,
-                ))
+                self.devtools.network_errors.append(
+                    NetworkError(
+                        url=response.url,
+                        method=response.request.method,
+                        status=response.status,
+                        status_text=response.status_text,
+                        resource_type=response.request.resource_type,
+                    )
+                )
+
         page.on("response", on_response)
 
     def stop(self):
@@ -440,21 +493,27 @@ class BrowserInterface:
         In persistent mode, closing the context saves profile data to disk.
         In CDP mode, only disconnects — the browser process keeps running.
         """
-        if not self._started: return
+        if not self._started:
+            return
         try:
-            if getattr(self, '_cdp', False):
+            if getattr(self, "_cdp", False):
                 # CDP mode: just disconnect, don't kill the browser
                 # The browser process is managed by browser_server.py
                 pass
             elif self._persistent:
                 # Persistent mode: context IS the browser, closing it saves state
-                if self.context: self.context.close()
+                if self.context:
+                    self.context.close()
             else:
                 # Ephemeral mode: close context then browser
-                if self.context: self.context.close()
-                if self.browser: self.browser.close()
-            if self._playwright: self._playwright.stop()
-        except Exception: pass
+                if self.context:
+                    self.context.close()
+                if self.browser:
+                    self.browser.close()
+            if self._playwright:
+                self._playwright.stop()
+        except Exception:
+            pass
         finally:
             self.page = self.context = self.browser = self._playwright = None
             self._started = False
@@ -466,7 +525,9 @@ class BrowserInterface:
 
     def _ok(self):
         if not self._started or not self.page:
-            raise RuntimeError("Browser not started. Use context manager or call start().")
+            raise RuntimeError(
+                "Browser not started. Use context manager or call start()."
+            )
 
     # --- Navigation ---
 
@@ -476,24 +537,35 @@ class BrowserInterface:
         """
         self._ok()
         kw = {"wait_until": wait_until}
-        if timeout: kw["timeout"] = timeout
+        if timeout:
+            kw["timeout"] = timeout
         r = self.page.goto(url, **kw)
-        return {"url": self.page.url, "title": self.page.title(), "status": r.status if r else None}
+        return {
+            "url": self.page.url,
+            "title": self.page.title(),
+            "status": r.status if r else None,
+        }
 
     def reload(self, wait_until="load"):
         """Reload page. Returns {"url", "title", "status"}."""
         self._ok()
         r = self.page.reload(wait_until=wait_until)
-        return {"url": self.page.url, "title": self.page.title(), "status": r.status if r else None}
+        return {
+            "url": self.page.url,
+            "title": self.page.title(),
+            "status": r.status if r else None,
+        }
 
     def go_back(self):
         """Navigate back."""
-        self._ok(); r = self.page.go_back()
+        self._ok()
+        r = self.page.go_back()
         return {"url": self.page.url, "title": self.page.title()} if r else None
 
     def go_forward(self):
         """Navigate forward."""
-        self._ok(); r = self.page.go_forward()
+        self._ok()
+        r = self.page.go_forward()
         return {"url": self.page.url, "title": self.page.title()} if r else None
 
     # --- Properties ---
@@ -501,96 +573,119 @@ class BrowserInterface:
     @property
     def title(self):
         """Page title."""
-        self._ok(); return self.page.title()
+        self._ok()
+        return self.page.title()
 
     @property
     def url(self):
         """Page URL."""
-        self._ok(); return self.page.url
+        self._ok()
+        return self.page.url
 
     @property
     def content(self):
         """Full page HTML."""
-        self._ok(); return self.page.content()
+        self._ok()
+        return self.page.content()
 
     # --- Interaction ---
 
     def click(self, selector, timeout=None, **kw):
         """Click element. Selector: CSS, "text=...", or Playwright locator."""
         self._ok()
-        if timeout: kw["timeout"] = timeout
+        if timeout:
+            kw["timeout"] = timeout
         self.page.click(selector, **kw)
 
     def double_click(self, selector, **kw):
         """Double-click element."""
-        self._ok(); self.page.dblclick(selector, **kw)
+        self._ok()
+        self.page.dblclick(selector, **kw)
 
     def right_click(self, selector, **kw):
         """Right-click element."""
-        self._ok(); self.page.click(selector, button="right", **kw)
+        self._ok()
+        self.page.click(selector, button="right", **kw)
 
     def hover(self, selector, **kw):
         """Hover over element."""
-        self._ok(); self.page.hover(selector, **kw)
+        self._ok()
+        self.page.hover(selector, **kw)
 
     def fill(self, selector, value, **kw):
         """Fill input (clears first). Works on input, textarea, contenteditable."""
-        self._ok(); self.page.fill(selector, value, **kw)
+        self._ok()
+        self.page.fill(selector, value, **kw)
 
     def type_text(self, selector, text, delay=0, **kw):
         """Type character-by-character. delay=ms between keys."""
-        self._ok(); self.page.type(selector, text, delay=delay, **kw)
+        self._ok()
+        self.page.type(selector, text, delay=delay, **kw)
 
     def press(self, selector, key, **kw):
         """Press key on element. key: 'Enter', 'Tab', 'Escape', 'ArrowDown', etc."""
-        self._ok(); self.page.press(selector, key, **kw)
+        self._ok()
+        self.page.press(selector, key, **kw)
 
     def select_option(self, selector, value=None, label=None, index=None, **kw):
         """Select <option> by value, label, or index. Returns selected values."""
         self._ok()
         opts = {}
-        if value is not None: opts["value"] = value
-        if label is not None: opts["label"] = label
-        if index is not None: opts["index"] = index
+        if value is not None:
+            opts["value"] = value
+        if label is not None:
+            opts["label"] = label
+        if index is not None:
+            opts["index"] = index
         return self.page.select_option(selector, **opts, **kw)
 
     def check(self, selector, **kw):
         """Check checkbox/radio."""
-        self._ok(); self.page.check(selector, **kw)
+        self._ok()
+        self.page.check(selector, **kw)
 
     def uncheck(self, selector, **kw):
         """Uncheck checkbox."""
-        self._ok(); self.page.uncheck(selector, **kw)
+        self._ok()
+        self.page.uncheck(selector, **kw)
 
     # --- Content Extraction ---
 
     def text(self, selector="body"):
         """Get visible text of element (default: entire page)."""
-        self._ok(); return self.page.inner_text(selector)
+        self._ok()
+        return self.page.inner_text(selector)
 
     def html(self, selector="body"):
         """Get inner HTML of element."""
-        self._ok(); return self.page.inner_html(selector)
+        self._ok()
+        return self.page.inner_html(selector)
 
     def attribute(self, selector, name):
         """Get element attribute. e.g. attribute('a', 'href')"""
-        self._ok(); return self.page.get_attribute(selector, name)
+        self._ok()
+        return self.page.get_attribute(selector, name)
 
     def query_all(self, selector):
         """Count matching elements."""
-        self._ok(); return len(self.page.query_selector_all(selector))
+        self._ok()
+        return len(self.page.query_selector_all(selector))
 
     def query_texts(self, selector):
         """Get text of ALL matching elements. Returns list of strings."""
-        self._ok(); return [el.inner_text() for el in self.page.query_selector_all(selector)]
+        self._ok()
+        return [el.inner_text() for el in self.page.query_selector_all(selector)]
 
     def evaluate(self, js):
         """Execute JavaScript and return result."""
-        self._ok(); return self.page.evaluate(js)
+        self._ok()
+        return self.page.evaluate(js)
 
     # --- Screenshots & PDF ---
 
-    def screenshot(self, path="screenshot.png", full_page=False, selector=None, quality=None):
+    def screenshot(
+        self, path="screenshot.png", full_page=False, selector=None, quality=None
+    ):
         """Take screenshot. Returns absolute path.
         full_page=True captures entire scrollable page.
         selector: screenshot a specific element.
@@ -598,10 +693,12 @@ class BrowserInterface:
         """
         self._ok()
         kw = {"path": path, "full_page": full_page}
-        if quality is not None: kw["quality"] = quality
+        if quality is not None:
+            kw["quality"] = quality
         if selector:
             el = self.page.query_selector(selector)
-            if not el: raise ValueError(f"Element not found: {selector}")
+            if not el:
+                raise ValueError(f"Element not found: {selector}")
             el.screenshot(path=path)
         else:
             self.page.screenshot(**kw)
@@ -627,21 +724,24 @@ class BrowserInterface:
         """Wait for element. state: 'visible'|'hidden'|'attached'|'detached'."""
         self._ok()
         kw = {"state": state}
-        if timeout: kw["timeout"] = timeout
+        if timeout:
+            kw["timeout"] = timeout
         self.page.wait_for_selector(selector, **kw)
 
     def wait_for_url(self, pattern, timeout=None):
         """Wait for URL to match pattern (glob or regex)."""
         self._ok()
         kw = {}
-        if timeout: kw["timeout"] = timeout
+        if timeout:
+            kw["timeout"] = timeout
         self.page.wait_for_url(pattern, **kw)
 
     def wait_for_load(self, state="load", timeout=None):
         """Wait for load state: 'load'|'domcontentloaded'|'networkidle'."""
         self._ok()
         kw = {}
-        if timeout: kw["timeout"] = timeout
+        if timeout:
+            kw["timeout"] = timeout
         self.page.wait_for_load_state(state, **kw)
 
     def sleep(self, seconds):
@@ -663,7 +763,8 @@ class BrowserInterface:
                 self.page.evaluate(js)
             except Exception:
                 pass
-        if url: self.page.goto(url)
+        if url:
+            self.page.goto(url)
 
     def close_tab(self):
         """Close current tab, switch to last remaining."""
@@ -676,37 +777,44 @@ class BrowserInterface:
     @property
     def tab_count(self):
         """Number of open tabs."""
-        self._ok(); return len(self.context.pages)
+        self._ok()
+        return len(self.context.pages)
 
     # --- Scroll ---
 
     def scroll_down(self, px=500):
         """Scroll down by pixels."""
-        self._ok(); self.page.evaluate(f"window.scrollBy(0,{px})")
+        self._ok()
+        self.page.evaluate(f"window.scrollBy(0,{px})")
 
     def scroll_up(self, px=500):
         """Scroll up by pixels."""
-        self._ok(); self.page.evaluate(f"window.scrollBy(0,-{px})")
+        self._ok()
+        self.page.evaluate(f"window.scrollBy(0,-{px})")
 
     def scroll_to_top(self):
         """Scroll to top of page."""
-        self._ok(); self.page.evaluate("window.scrollTo(0,0)")
+        self._ok()
+        self.page.evaluate("window.scrollTo(0,0)")
 
     def scroll_to_bottom(self):
         """Scroll to bottom of page."""
-        self._ok(); self.page.evaluate("window.scrollTo(0,document.body.scrollHeight)")
+        self._ok()
+        self.page.evaluate("window.scrollTo(0,document.body.scrollHeight)")
 
     def scroll_to(self, selector):
         """Scroll element into view."""
         self._ok()
         el = self.page.query_selector(selector)
-        if el: el.scroll_into_view_if_needed()
+        if el:
+            el.scroll_into_view_if_needed()
 
     # --- Cookies & Storage ---
 
     def cookies(self):
         """Get all cookies. Returns list of cookie dicts."""
-        self._ok(); return self.context.cookies()
+        self._ok()
+        return self.context.cookies()
 
     def set_cookie(self, name, value, url=None, domain=None, path=None):
         """Set a cookie. Provide either url OR domain+path, not both."""
@@ -715,13 +823,15 @@ class BrowserInterface:
         if url:
             cookie["url"] = url
         else:
-            if domain: cookie["domain"] = domain
+            if domain:
+                cookie["domain"] = domain
             cookie["path"] = path or "/"
         self.context.add_cookies([cookie])
 
     def clear_cookies(self):
         """Clear all cookies."""
-        self._ok(); self.context.clear_cookies()
+        self._ok()
+        self.context.clear_cookies()
 
     def local_storage(self, key=None):
         """Get localStorage. If key provided, get single value. Else get all as dict."""
@@ -738,11 +848,13 @@ class BrowserInterface:
         self._ok()
         if types is None:
             types = ["image", "stylesheet", "font"]
+
         def handle(route):
             if route.request.resource_type in types:
                 route.abort()
             else:
                 route.continue_()
+
         self.page.route("**/*", handle)
 
     def intercept_requests(self, callback):
@@ -788,6 +900,7 @@ class BrowserInterface:
 # CLI Interface
 # ============================================================================
 
+
 def _print_devtools(b, show_json=False):
     """Print devtools report after CLI commands."""
     if show_json:
@@ -802,27 +915,34 @@ def main():
     parser = argparse.ArgumentParser(
         description="Browser automation CLI with devtools error capture",
         epilog="Examples:\n"
-               "  %(prog)s goto https://example.com\n"
-               "  %(prog)s screenshot page.png --url https://example.com\n"
-               "  %(prog)s text h1 --url https://example.com\n"
-               "  %(prog)s pdf report.pdf --url https://example.com\n"
-               "  %(prog)s check https://example.com  (check for JS/network errors)\n"
-               "  %(prog)s console https://example.com (show all console output)\n",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        "  %(prog)s goto https://example.com\n"
+        "  %(prog)s screenshot page.png --url https://example.com\n"
+        "  %(prog)s text h1 --url https://example.com\n"
+        "  %(prog)s pdf report.pdf --url https://example.com\n"
+        "  %(prog)s check https://example.com  (check for JS/network errors)\n"
+        "  %(prog)s console https://example.com (show all console output)\n",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     # Global flags
-    parser.add_argument("--no-devtools", action="store_true",
-                        help="Suppress devtools error report")
-    parser.add_argument("--devtools-json", action="store_true",
-                        help="Output devtools data as JSON instead of human-readable")
+    parser.add_argument(
+        "--no-devtools", action="store_true", help="Suppress devtools error report"
+    )
+    parser.add_argument(
+        "--devtools-json",
+        action="store_true",
+        help="Output devtools data as JSON instead of human-readable",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # goto
     p = sub.add_parser("goto", help="Navigate to URL and print page info + errors")
     p.add_argument("url", help="URL to navigate to")
     p.add_argument("--headless", action="store_true", help="Run headless")
-    p.add_argument("--wait", default="load",
-                   choices=["load", "domcontentloaded", "networkidle", "commit"])
+    p.add_argument(
+        "--wait",
+        default="load",
+        choices=["load", "domcontentloaded", "networkidle", "commit"],
+    )
 
     # screenshot
     p = sub.add_parser("screenshot", help="Take a screenshot")
@@ -854,15 +974,21 @@ def main():
     p = sub.add_parser("check", help="Load URL and report JS/console/network errors")
     p.add_argument("url", help="URL to check")
     p.add_argument("--headless", action="store_true")
-    p.add_argument("--wait", default="networkidle",
-                   choices=["load", "domcontentloaded", "networkidle", "commit"])
+    p.add_argument(
+        "--wait",
+        default="networkidle",
+        choices=["load", "domcontentloaded", "networkidle", "commit"],
+    )
 
     # console — show all console output
     p = sub.add_parser("console", help="Load URL and show all console output")
     p.add_argument("url", help="URL to load")
     p.add_argument("--headless", action="store_true")
-    p.add_argument("--wait", default="networkidle",
-                   choices=["load", "domcontentloaded", "networkidle", "commit"])
+    p.add_argument(
+        "--wait",
+        default="networkidle",
+        choices=["load", "domcontentloaded", "networkidle", "commit"],
+    )
 
     args = parser.parse_args()
     headless = getattr(args, "headless", True)
@@ -900,8 +1026,12 @@ def main():
                     print("(no console output)")
                 else:
                     for entry in b.devtools.console:
-                        prefix = {"error": "❌", "warning": "⚠️ ",
-                                  "info": "ℹ️ ", "debug": "🔧"}.get(entry.type, "  ")
+                        prefix = {
+                            "error": "❌",
+                            "warning": "⚠️ ",
+                            "info": "ℹ️ ",
+                            "debug": "🔧",
+                        }.get(entry.type, "  ")
                         loc = f" [{entry.url}:{entry.line}]" if entry.url else ""
                         print(f"{prefix} [{entry.type:>7}] {entry.text}{loc}")
                 # Also show errors/network issues
@@ -911,8 +1041,9 @@ def main():
             sys.exit(1 if b.devtools.has_errors else 0)
 
         elif args.command == "screenshot":
-            path = b.screenshot(args.path, full_page=args.full_page,
-                                selector=args.selector)
+            path = b.screenshot(
+                args.path, full_page=args.full_page, selector=args.selector
+            )
             print(f"Screenshot saved: {path}")
             if show_devtools:
                 _print_devtools(b, devtools_json)

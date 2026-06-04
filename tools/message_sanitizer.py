@@ -29,24 +29,24 @@ def sanitize(text: str) -> str:
     text = _strip_emojis(text)
 
     # 2. Replace em dashes and double dashes with commas
-    text = re.sub(r'\s*[—–]\s*', ', ', text)
-    text = re.sub(r'\s*--\s*', ', ', text)
+    text = re.sub(r"\s*[—–]\s*", ", ", text)
+    text = re.sub(r"\s*--\s*", ", ", text)
 
     # 3. Collapse over-punctuation
-    text = re.sub(r'!{2,}', '!', text)
-    text = re.sub(r'\?{2,}', '?', text)
-    text = re.sub(r'\.{3,}', '...', text)  # keep single ellipsis
-    text = re.sub(r'[!?]{2,}', '?', text)  # mixed like !? or ?!
+    text = re.sub(r"!{2,}", "!", text)
+    text = re.sub(r"\?{2,}", "?", text)
+    text = re.sub(r"\.{3,}", "...", text)  # keep single ellipsis
+    text = re.sub(r"[!?]{2,}", "?", text)  # mixed like !? or ?!
 
     # 4. Remove Slack emoji codes like :ghost: :rocket: :wave: etc
-    text = re.sub(r':[a-z0-9_+-]+:', '', text)
+    text = re.sub(r":[a-z0-9_+-]+:", "", text)
 
     # 5. Clean up resulting whitespace
-    text = re.sub(r'  +', ' ', text)         # collapse multiple spaces
-    text = re.sub(r' ,', ',', text)           # fix space-before-comma
-    text = re.sub(r',\s*,', ',', text)        # collapse double commas
-    text = re.sub(r'^\s*,\s*', '', text)      # remove leading comma
-    text = re.sub(r',\s*$', '', text.rstrip())  # remove trailing comma
+    text = re.sub(r"  +", " ", text)  # collapse multiple spaces
+    text = re.sub(r" ,", ",", text)  # fix space-before-comma
+    text = re.sub(r",\s*,", ",", text)  # collapse double commas
+    text = re.sub(r"^\s*,\s*", "", text)  # remove leading comma
+    text = re.sub(r",\s*$", "", text.rstrip())  # remove trailing comma
     lines = text.splitlines()
     lines = [line.rstrip() for line in lines]
     # Remove fully blank lines at start/end
@@ -54,12 +54,12 @@ def sanitize(text: str) -> str:
         lines.pop(0)
     while lines and not lines[-1].strip():
         lines.pop()
-    text = '\n'.join(lines)
+    text = "\n".join(lines)
 
     # Final trim of leading/trailing whitespace per line
     lines = text.splitlines()
     lines = [line.strip() if not line.strip() else line.lstrip() for line in lines]
-    text = '\n'.join(lines)
+    text = "\n".join(lines)
 
     return text
 
@@ -79,13 +79,13 @@ def _strip_emojis(text: str) -> str:
         "\U0001FA70-\U0001FAFF"  # symbols extended-A
         "\U00002600-\U000026FF"  # misc symbols
         "\U0000FE00-\U0000FE0F"  # variation selectors
-        "\U0000200D"             # zero width joiner
+        "\U0000200D"  # zero width joiner
         "\U0000200B-\U0000200F"  # zero-width chars
         "\U0000E000-\U0000F8FF"  # private use area
         "]+",
         flags=re.UNICODE,
     )
-    return emoji_pattern.sub('', text)
+    return emoji_pattern.sub("", text)
 
 
 def main():

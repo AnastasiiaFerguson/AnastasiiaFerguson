@@ -439,7 +439,7 @@ python slack_interface.py config --set-channel "#your-channel"
 
 The channel might be private or the bot isn't a member.
 
-**Solution**: 
+**Solution**:
 ```bash
 # Join the channel first
 python slack_interface.py join "#channel-name"
@@ -458,7 +458,7 @@ python slack_interface.py scopes
 
 File uploads require the `files:write` scope.
 
-**Solution**: 
+**Solution**:
 1. Go to your Slack app settings at https://api.slack.com/apps
 2. Navigate to "OAuth & Permissions"
 3. Add `files:write` to Bot Token Scopes

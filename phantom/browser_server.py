@@ -33,10 +33,19 @@ PSIPHON_PROXY = "http://127.0.0.1:18080"
 DISPLAY = os.environ.get("DISPLAY", ":99")
 
 # Find Chromium binary
+# Playwright uses different subdirectory names per architecture:
+#   chrome-linux64/  — x86_64 (typical cloud / Linux servers)
+#   chrome-linux/    — ARM64  (Apple Silicon Macs running Docker)
 CHROMIUM_PATHS = [
+    # x86_64 — hardcoded latest known revision + glob fallback
     Path("/root/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome"),
-    # Fallback: find any playwright chromium
-    *sorted(Path("/root/.cache/ms-playwright").glob("chromium-*/chrome-linux64/chrome")),
+    # ARM64 — hardcoded latest known revision + glob fallback
+    Path("/root/.cache/ms-playwright/chromium-1208/chrome-linux/chrome"),
+    # Glob fallback: any installed revision, both architectures
+    *sorted(
+        Path("/root/.cache/ms-playwright").glob("chromium-*/chrome-linux64/chrome")
+    ),
+    *sorted(Path("/root/.cache/ms-playwright").glob("chromium-*/chrome-linux/chrome")),
 ]
 
 
@@ -45,9 +54,7 @@ def _find_chromium() -> str:
     for p in CHROMIUM_PATHS:
         if p.exists():
             return str(p)
-    raise FileNotFoundError(
-        "Chromium not found. Run: playwright install chromium"
-    )
+    raise FileNotFoundError("Chromium not found. Run: playwright install chromium")
 
 
 def _is_running() -> bool:
@@ -153,10 +160,13 @@ def start(foreground=False):
             existing_pid = _get_pid()
             if existing_pid:
                 import signal as _sig
+
                 print(f"   Monitoring existing PID {existing_pid}...")
+
                 def _on_term(s, f):
                     stop()
                     sys.exit(0)
+
                 _sig.signal(_sig.SIGTERM, _on_term)
                 _sig.signal(_sig.SIGINT, _on_term)
                 # Poll until the process dies
@@ -179,17 +189,18 @@ def start(foreground=False):
         stop()
 
     # Clear stale Chrome singleton lock files before launching
-    # These are left behind when Chrome crashes or is killed ungracefully
     for lock_file in ["SingletonLock", "SingletonCookie", "SingletonSocket"]:
         lock_path = BROWSER_DATA_DIR / lock_file
-        if lock_path.exists():
+        if lock_path.is_symlink() or lock_path.exists():
             lock_path.unlink()
             print(f"   Cleared stale lock: {lock_file}")
 
     # Also clear any /tmp chromium lock dirs
     import glob
+
     for tmp_dir in glob.glob("/tmp/org.chromium.Chromium.*"):
         import shutil
+
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
     # Kill any orphaned chromium processes holding port 9222
@@ -236,6 +247,8 @@ def start(foreground=False):
         "--password-store=basic",
         "--use-mock-keychain",
         "--disable-blink-features=AutomationControlled",
+        "--disable-gpu",
+        "--disable-gpu-sandbox",
         "--enable-unsafe-swiftshader",
         "--ignore-certificate-errors",
         "--window-size=1600,900",
@@ -279,8 +292,10 @@ def start(foreground=False):
                 return
             time.sleep(0.5)
 
-        print("⚠️  Browser started but CDP not responding yet. Check with: "
-              f"python {__file__} status")
+        print(
+            "⚠️  Browser started but CDP not responding yet. Check with: "
+            f"python {__file__} status"
+        )
 
 
 def ensure_running():
